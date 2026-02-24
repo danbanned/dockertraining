@@ -1,15 +1,23 @@
-FROM node:20-alpine AS builder
+# Use Node 20 alpine for dev
+FROM node:20-alpine
+
 WORKDIR /app
+
+# Copy package.json and install dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm install
+
+
+# Copy entire project, including prisma folder
 COPY . .
+
+# Build the Next.js production bundle
 RUN npm run build
 
-FROM node:20-alpine AS production
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+# Generate Prisma client
+RUN npx prisma generate
+
 EXPOSE 3000
-CMD ["node", "server.js"]
+
+# Start app
+CMD ["npm", "start"]

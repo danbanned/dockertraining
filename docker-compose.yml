@@ -1,0 +1,52 @@
+#the first thing we do is add our version which tells docker which compose file format version were using 
+version: "3.9"
+
+services: #is what holds our containers 
+  db: #this is tghe name of our container, so inside services we specify what containers it holds, db is our database container 
+  #service name = hostname in docker, i think our db is the service name, meaning services and container are one 
+    image: postgres:15 #pulls official postgres version 15 image from dockerhub
+    #docker already has prebuilt linux images that your container can use instead of the user manually installign it.
+    restart: always #automatically restart the container if it crashes 
+    environment: 
+      POSTGRES_USER: postgres #database is given a username
+      POSTGRES_PASSWORD: postgres #database is assigned a password 
+      POSTGRES_DB: appdb #then we give it a name so when we are ready to start the database this is what runs it 
+    volumes:
+      - postgres_data:/var/lib/postgresql/data #saves database files
+      # to a named volume (persistent storage)
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"] #checks to see if postgres is ready to accept connections 
+      interval: 5s #check every 5 seconds 
+      timeout: 5s #fail if no response in 5 seconds
+      retries: 5 #try 5 times before marking unhealthy
+      #our health check runs a series of commands like interval wich checks every 5 secons
+      #and timeout which failes the test after 5 seconds
+      #we do all this to see if the database is reachable before proceeding forward and to add flags 
+
+  app: #this is your Node/Next backend container 
+    build: . #builds dockerfile from the current directory thats what the periods for 
+    ports:
+      - "3000:3000" #maps port 300 inside the container to port 300 on your host machine
+      #this allows you to access the app in your browser at localhost:3000 we arae not connecting serevrs we are just exposing 
+      #the containers port to our local machine 
+    depends_on:
+      db: 
+        condition: service_healthy #waits until our health check on the db passes before starting the container 
+    env_file:
+      - .env.production
+      # connects to postgres using one of our service names which is our "db"
+      #use postgresql://username=postgres:password=postgres@host=db:port=5432/database name=appdb
+      #because docker creates a private network containers talk to ecahother using service names 
+    restart: always #automatically restart the container if it crashes 
+    healthcheck:
+      test: ["CMD", "wget","--spider","-q","http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  postgres_data: #declares the named volume that we saved our database files in so docker creates it properly 
+
+
+
