@@ -10,7 +10,7 @@ services: #is what holds our containers
     environment: 
       POSTGRES_USER: postgres #database is given a username
       POSTGRES_PASSWORD: postgres #database is assigned a password 
-      POSTGRES_DB: appdb #then we give it a name so when we are ready to start the database this is what runs it 
+      POSTGRES_DB: brightpath #then we give it a name so when we are ready to start the database this is what runs it 
     volumes:
       - postgres_data:/var/lib/postgresql/data #saves database files
       # to a named volume (persistent storage)
