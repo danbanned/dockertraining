@@ -1,8 +1,93 @@
+# -----------------------------------------------------------
+# node_modules
+# -----------------------------------------------------------
+# Prevents your local node_modules folder from being copied
+# into the container.
+#
+# Why?
+# Because we already run "npm install" inside the container.
+# Copying local node_modules can:
+# - Break builds (OS mismatch: Mac vs Linux)
+# - Increase image size massively
+# - Cause dependency conflicts
 node_modules
+
+
+# -----------------------------------------------------------
+# .next
+# -----------------------------------------------------------
+# Excludes the local Next.js build output.
+#
+# We run "npm run build" inside Docker,
+# so we do NOT want to copy your local build files.
+#
+# This ensures the container builds a clean production bundle.
 .next
+
+
+# -----------------------------------------------------------
+# .git
+# -----------------------------------------------------------
+# Prevents your Git history from being copied into the image.
+#
+# This:
+# - Reduces image size
+# - Prevents exposing commit history
+# - Keeps the image production-clean
 .git
+
+
+# -----------------------------------------------------------
+# .env*
+# -----------------------------------------------------------
+# Excludes ALL environment files:
+# .env
+# .env.local
+# .env.development
+# etc.
+#
+# Important for security:
+# You should NOT bake secrets into Docker images.
+# Instead, pass environment variables at runtime:
+# docker run -e DATABASE_URL=...
 .env*
+
+
+# -----------------------------------------------------------
+# npm-debug.log*
+# -----------------------------------------------------------
+# Excludes npm debug logs.
+#
+# These are temporary crash logs and not needed in production.
 npm-debug.log*
+
+
+# -----------------------------------------------------------
+# Dockerfile*
+# -----------------------------------------------------------
+# Prevents copying Dockerfiles into the container.
+#
+# The Dockerfile is only needed during the build process,
+# not inside the final running container.
 Dockerfile*
+
+
+# -----------------------------------------------------------
+# README.md
+# -----------------------------------------------------------
+# Prevents copying documentation into the container.
+#
+# Keeps the production image smaller and cleaner.
 README.md
+
+
+# -----------------------------------------------------------
+# .env.production
+# -----------------------------------------------------------
+# Explicitly excludes production env file.
+#
+# Even if you use production secrets,
+# they should be injected at runtime
+# (via Docker, Docker Compose, or CI/CD),
+# NOT copied into the image.
 .env.production
