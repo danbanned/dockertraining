@@ -1,6 +1,15 @@
-#the first thing we do is add our version which tells docker which compose file format version were using 
 version: "3.9"
 
+<<<<<<< HEAD
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB?POSTGRES_DB is required}
+=======
 services: #is what holds our containers 
   db: #this is tghe name of our container, so inside services we specify what containers it holds, db is our database container 
   #service name = hostname in docker, i think our db is the service name, meaning services and container are one 
@@ -10,43 +19,33 @@ services: #is what holds our containers
     environment: 
       POSTGRES_USER: postgres #database is given a username
       POSTGRES_PASSWORD: postgres #database is assigned a password 
-      POSTGRES_DB: brightpath #then we give it a name so when we are ready to start the database this is what runs it 
+      POSTGRES_DB: appdb #then we give it a name so when we are ready to start the database this is what runs it 
     volumes:
-      - postgres_data:/var/lib/postgresql/data #saves database files
-      # to a named volume (persistent storage)
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"] #checks to see if postgres is ready to accept connections 
-      interval: 5s #check every 5 seconds 
-      timeout: 5s #fail if no response in 5 seconds
-      retries: 5 #try 5 times before marking unhealthy
-      #our health check runs a series of commands like interval wich checks every 5 secons
-      #and timeout which failes the test after 5 seconds
-      #we do all this to see if the database is reachable before proceeding forward and to add flags 
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  app: #this is your Node/Next backend container 
-    build: . #builds dockerfile from the current directory thats what the periods for 
+  app:
+    build: .
     ports:
-      - "3000:3000" #maps port 300 inside the container to port 300 on your host machine
-      #this allows you to access the app in your browser at localhost:3000 we arae not connecting serevrs we are just exposing 
-      #the containers port to our local machine 
+      - "3000:3000"
     depends_on:
-      db: 
-        condition: service_healthy #waits until our health check on the db passes before starting the container 
+      db:
+        condition: service_healthy
     env_file:
       - .env.production
-      # connects to postgres using one of our service names which is our "db"
-      #use postgresql://username=postgres:password=postgres@host=db:port=5432/database name=appdb
-      #because docker creates a private network containers talk to ecahother using service names 
-    restart: always #automatically restart the container if it crashes 
+    environment:
+      DATABASE_URL: ${DATABASE_URL?DATABASE_URL is required}
+    restart: always
     healthcheck:
-      test: ["CMD", "wget","--spider","-q","http://localhost:3000"]
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
 
 volumes:
-  postgres_data: #declares the named volume that we saved our database files in so docker creates it properly 
-
-
-
+  postgres_data:
