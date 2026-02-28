@@ -1,5 +1,6 @@
 version: "3.9"
 
+<<<<<<< HEAD
 services:
   db:
     image: postgres:15
@@ -8,6 +9,18 @@ services:
       POSTGRES_USER: ${POSTGRES_USER?POSTGRES_USER is required}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB?POSTGRES_DB is required}
+=======
+services: #is what holds our containers 
+  db: #this is tghe name of our container, so inside services we specify what containers it holds, db is our database container 
+  #service name = hostname in docker, i think our db is the service name, meaning services and container are one 
+    image: postgres:15 #pulls official postgres version 15 image from dockerhub
+    #docker already has prebuilt linux images that your container can use instead of the user manually installign it.
+    restart: always #automatically restart the container if it crashes 
+    environment: 
+      POSTGRES_USER: postgres #database is given a username
+      POSTGRES_PASSWORD: postgres #database is assigned a password 
+      POSTGRES_DB: brightpath #then we give it a name so when we are ready to start the database this is what runs it 
+>>>>>>> 5d991e646cf9b60d4528ef4b9202b835f558ff29
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

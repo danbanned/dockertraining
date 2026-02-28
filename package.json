@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+<<<<<<< HEAD
     "test": "node --test"
+=======
+    "test": "jest"
+>>>>>>> 5d991e646cf9b60d4528ef4b9202b835f558ff29
   },
   "dependencies": {
     "@prisma/client": "^7.4.1",
@@ -15,6 +19,7 @@
     "react-dom": "18.3.1"
   },
   "devDependencies": {
+    "jest": "^30.2.0",
     "prisma": "^7.4.1"
   }
 }
