@@ -1,0 +1,108 @@
+# -----------------------------------------------------------
+# Workflow Name
+# -----------------------------------------------------------
+# This is the name shown in the GitHub Actions tab.
+# It describes what this workflow does.
+name: CI
+
+
+# -----------------------------------------------------------
+# When This Workflow Runs
+# -----------------------------------------------------------
+on:
+  # Run on every push to ANY branch
+  push:
+    branches:
+      - "**"   # "**" means all branches
+
+  # Also run when a pull request is opened or updated
+  pull_request:
+
+
+# -----------------------------------------------------------
+# Jobs Section
+# -----------------------------------------------------------
+# A workflow can have multiple jobs.
+# Each job runs in a fresh virtual machine.
+jobs:
+
+  # ---------------------------------------------------------
+  # Job Name
+  # ---------------------------------------------------------
+  build-and-test:
+
+    # The operating system environment GitHub provides.
+    # ubuntu-latest is a Linux VM maintained by GitHub.
+    runs-on: ubuntu-latest
+
+    steps:
+
+      # -----------------------------------------------------
+      # Step 1: Checkout Repository
+      # -----------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # This pulls your repository code into the runner.
+      # Without this, the workflow wouldn’t have access
+      # to your project files.
+
+
+      # -----------------------------------------------------
+      # Step 2: Setup Node.js
+      # -----------------------------------------------------
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      # This installs Node.js version 20 inside the runner.
+      # It also enables npm dependency caching.
+      #
+      # Caching:
+      # - Speeds up future workflow runs
+      # - Prevents reinstalling all dependencies every time
+
+
+      # -----------------------------------------------------
+      # Step 3: Install Dependencies
+      # -----------------------------------------------------
+      - name: Install deps
+        run: npm ci
+
+      # npm ci:
+      # - Uses package-lock.json
+      # - Installs exact dependency versions
+      # - Faster and safer for CI than npm install
+      #
+      # This ensures reproducible builds.
+
+
+      # -----------------------------------------------------
+      # Step 4: Run Tests
+      # -----------------------------------------------------
+      - name: Run tests
+        run: npm test
+
+      # Runs your test suite.
+      #
+      # If tests fail:
+      # - The workflow fails
+      # - The pull request cannot be safely merged
+      #
+      # This protects your codebase from broken code.
+
+
+      # -----------------------------------------------------
+      # Step 5: Build Application
+      # -----------------------------------------------------
+      - name: Build app
+        run: npm run build
+
+      # Builds your production app (e.g., Next.js build).
+      #
+      # This verifies:
+      # - Code compiles
+      # - No type errors
+      # - No build-time crashes

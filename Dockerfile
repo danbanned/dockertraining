@@ -32,8 +32,7 @@ COPY package*.json ./
 # - React
 # - Prisma
 # - Any other libraries your app depends on
-RUN npm install
-
+RUN npm ci
 
 # -----------------------------------------------------------
 # Copy Application Source Code
@@ -47,14 +46,6 @@ RUN npm install
 # - Configuration files
 COPY . .
 
-
-# -----------------------------------------------------------
-# Build Application
-# -----------------------------------------------------------
-# Builds the Next.js production bundle.
-# This compiles your application into optimized production code.
-# After this step, your app is ready to run in production mode.
-RUN npm run build
 
 
 # -----------------------------------------------------------
@@ -71,6 +62,15 @@ RUN npm run build
 # with your database (PostgreSQL, MySQL, etc.).
 RUN npx prisma generate
 
+#docker deploy adds the tables
+
+# -----------------------------------------------------------
+# Build Application
+# -----------------------------------------------------------
+# Builds the Next.js production bundle.
+# This compiles your application into optimized production code.
+# After this step, your app is ready to run in production mode.
+RUN npm run build
 
 # -----------------------------------------------------------
 # Expose Port
@@ -92,4 +92,4 @@ EXPOSE 3000
 #
 # That starts the production Next.js server,
 # which serves the built app and handles API routes.
-CMD ["npm", "start"]
+CMD sh -c "npx prisma migrate deploy && npm start"
