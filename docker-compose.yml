@@ -8,9 +8,9 @@ services: #is what holds our containers
     #docker already has prebuilt linux images that your container can use instead of the user manually installign it.
     restart: always #automatically restart the container if it crashes 
     environment: 
-      POSTGRES_USER: postgres #database is given a username
-      POSTGRES_PASSWORD: postgres #database is assigned a password 
-      POSTGRES_DB: brightpath #then we give it a name so when we are ready to start the database this is what runs it 
+      POSTGRES_USER: ${POSTGRES_USER} #database is given a username
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} #database is assigned a password 
+      POSTGRES_DB: ${POSTGRES_DB} #then we give it a name so when we are ready to start the database this is what runs it 
     volumes:
       - postgres_data:/var/lib/postgresql/data #saves database files
       # to a named volume (persistent storage)
@@ -37,7 +37,12 @@ services: #is what holds our containers
       # connects to postgres using one of our service names which is our "db"
       #use postgresql://username=postgres:password=postgres@host=db:port=5432/database name=appdb
       #because docker creates a private network containers talk to ecahother using service names 
+
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+
     restart: always #automatically restart the container if it crashes 
+
     healthcheck:
       test: ["CMD", "wget","--spider","-q","http://localhost:3000"]
       interval: 10s
