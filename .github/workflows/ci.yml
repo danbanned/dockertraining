@@ -118,11 +118,15 @@ jobs:
       # Step 7: Build Docker Image
       # -----------------------------------------------------
       - name: Build Docker image
-        run: docker build -t danny1026/app:v1.0.0 .
+        run: docker build -t danny1026/app:${{github.sha}} .
+                          -t danny1026/app:latest
 
 
       # -----------------------------------------------------
       # Step 8: Push Docker Image
       # -----------------------------------------------------
       - name: Push Docker image
-        run: docker push danny1026/app:v1.0.0
+        if: github.ref == 'refs/heads/main'
+        run: |
+            docker push danny1026/app:${{github.sha}}
+            docker push danny1026/app:latest
