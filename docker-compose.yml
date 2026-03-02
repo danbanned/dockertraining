@@ -8,15 +8,15 @@ services: #is what holds our containers
     #docker already has prebuilt linux images that your container can use instead of the user manually installign it.
     restart: always #automatically restart the container if it crashes 
     environment: 
-      POSTGRES_USER: ${POSTGRES_USER} #database is given a username
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} #database is assigned a password 
-      POSTGRES_DB: ${POSTGRES_DB} #then we give it a name so when we are ready to start the database this is what runs it 
+      POSTGRES_USER: postgres #database is given a username
+      POSTGRES_PASSWORD: postgres #database is assigned a password 
+      POSTGRES_DB: db #then we give it a name so when we are ready to start the database this is what runs it 
     volumes:
       - postgres_data:/var/lib/postgresql/data #saves database files
       # to a named volume (persistent storage)
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"] #checks to see if postgres is ready to accept connections 
-      interval: 5s #check every 5 seconds 
+      interval: 10s #check every 10 seconds 
       timeout: 5s #fail if no response in 5 seconds
       retries: 5 #try 5 times before marking unhealthy
       #our health check runs a series of commands like interval wich checks every 5 secons
