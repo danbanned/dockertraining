@@ -108,9 +108,13 @@ jobs:
       # - No build-time crashes
 
   test:
+  
+    runs-on: ubuntu-latest
+
     steps:
       - name: test app
         run: npm test 
+  
   
 
   
