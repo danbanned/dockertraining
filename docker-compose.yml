@@ -62,10 +62,10 @@ services: #is what holds our containers
       # If the test fails 5 times in a row, Docker changes the container status to unhealthy.
       retries: 5
 
-  # Grace period after the container starts before counting failures.
-  # During these first 10 seconds, failures do NOT count toward retries.
-  # This gives your app time to boot up before being judged unhealthy.
-  start_period: 10s
+      # Grace period after the container starts before counting failures.
+      # During these first 10 seconds, failures do NOT count toward retries.
+      # This gives your app time to boot up before being judged unhealthy.
+      start_period: 10s
 
 volumes:
   postgres_data: #declares the named volume that we saved our database files in so docker creates it properly 

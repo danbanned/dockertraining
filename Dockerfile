@@ -24,7 +24,7 @@ WORKDIR /app
 # This allows Docker to cache dependency installation.
 # If your dependencies don't change, Docker won't reinstall
 # them on every rebuild — which makes builds faster.
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
 # Install all Node dependencies defined in package.json.
 # This includes:
@@ -81,7 +81,7 @@ RUN npm run build
 #   docker run -p 3000:3000 ...
 EXPOSE 3000
 
-COPY scripts/entrypoint.sh
+COPY scripts /validate-logs.sh
 
 # -----------------------------------------------------------
 # Start the Application
@@ -93,4 +93,4 @@ COPY scripts/entrypoint.sh
 #
 # That starts the production Next.js server,
 # which serves the built app and handles API routes.
-CMD ["sh", "scripts/entrypoint.sh"]
+CMD ["sh", "scripts/validate-logs.sh"]
