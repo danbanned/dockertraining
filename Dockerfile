@@ -81,6 +81,7 @@ RUN npm run build
 #   docker run -p 3000:3000 ...
 EXPOSE 3000
 
+COPY scripts/entrypoint.sh
 
 # -----------------------------------------------------------
 # Start the Application
@@ -92,4 +93,4 @@ EXPOSE 3000
 #
 # That starts the production Next.js server,
 # which serves the built app and handles API routes.
-CMD sh -c "npx prisma migrate deploy && npm start"
+CMD ["sh", "scripts/entrypoint.sh"]

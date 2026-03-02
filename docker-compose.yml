@@ -8,15 +8,15 @@ services: #is what holds our containers
     #docker already has prebuilt linux images that your container can use instead of the user manually installign it.
     restart: always #automatically restart the container if it crashes 
     environment: 
-      POSTGRES_USER: postgres #database is given a username
-      POSTGRES_PASSWORD: postgres #database is assigned a password 
-      POSTGRES_DB: db #then we give it a name so when we are ready to start the database this is what runs it 
+      POSTGRES_USER: ${POSTGRES_USER} #database is given a username
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} #database is assigned a password 
+      POSTGRES_DB: ${POSTGRES_DB} #then we give it a name so when we are ready to start the database this is what runs it 
     volumes:
       - postgres_data:/var/lib/postgresql/data #saves database files
       # to a named volume (persistent storage)
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"] #checks to see if postgres is ready to accept connections 
-      interval: 10s #check every 10 seconds 
+      interval: 5s #check every 5 seconds 
       timeout: 5s #fail if no response in 5 seconds
       retries: 5 #try 5 times before marking unhealthy
       #our health check runs a series of commands like interval wich checks every 5 secons
@@ -42,15 +42,31 @@ services: #is what holds our containers
       DATABASE_URL: ${DATABASE_URL}
 
     restart: always #automatically restart the container if it crashes 
-
     healthcheck:
-      test: ["CMD", "wget","--spider","-q","http://localhost:3000"]
+      # The command Docker runs to determine if the container is healthy.
+      # "CMD" means run the command directly (not through a shell).
+      # wget --spider checks if the URL is reachable without downloading content.
+      # -q makes it quiet (no output).
+      # If http://localhost:3000 responds successfully, the container is marked healthy.
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+
+      # How often Docker runs the health check.
+      # Every 10 seconds, Docker will execute the test command.
       interval: 10s
+
+      # Maximum time Docker will wait for the test command to complete.
+      # If the command takes longer than 5 seconds, it is considered a failure.
       timeout: 5s
+
+      # Number of consecutive failures allowed before marking the container as "unhealthy".
+      # If the test fails 5 times in a row, Docker changes the container status to unhealthy.
       retries: 5
-      start_period: 10s
+
+  # Grace period after the container starts before counting failures.
+  # During these first 10 seconds, failures do NOT count toward retries.
+  # This gives your app time to boot up before being judged unhealthy.
+  start_period: 10s
 
 volumes:
   postgres_data: #declares the named volume that we saved our database files in so docker creates it properly 
-
 

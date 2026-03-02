@@ -13,7 +13,7 @@ on:
   # Run on every push to ANY branch
   push:
     branches:
-      - main   # "**" means all branches
+      - "**"   # "**" means all branches
 
   # Also run when a pull request is opened or updated
   pull_request:
@@ -29,7 +29,7 @@ jobs:
   # ---------------------------------------------------------
   # Job Name
   # ---------------------------------------------------------
-  build:
+  build-and-test:
 
     # The operating system environment GitHub provides.
     # ubuntu-latest is a Linux VM maintained by GitHub.
@@ -107,14 +107,22 @@ jobs:
       # - No type errors
       # - No build-time crashes
 
-  test:
-  
-    runs-on: ubuntu-latest
+      # -----------------------------------------------------
+      # Step 6: Login to Docker Hub
+      # -----------------------------------------------------
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
 
-    steps:
-      - name: test app
-        run: npm test 
-  
-  
 
-  
+      # -----------------------------------------------------
+      # Step 7: Build Docker Image
+      # -----------------------------------------------------
+      - name: Build Docker image
+        run: docker build -t danny1026/app:v1.0.0 .
+
+
+      # -----------------------------------------------------
+      # Step 8: Push Docker Image
+      # -----------------------------------------------------
+      - name: Push Docker image
+        run: docker push danny1026/app:v1.0.0
