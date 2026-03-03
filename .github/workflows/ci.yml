@@ -120,8 +120,10 @@ jobs:
       # -----------------------------------------------------
       - name: Build Docker image
         run: |
-         docker build -t danny1026/app:${{github.sha}} . \
-                          -t danny1026/app:latest .
+         docker build \
+            -t danny1026/app:${{github.sha}}  \
+            -t danny1026/app:latest \
+            .
 
         # | means multiline 
 
