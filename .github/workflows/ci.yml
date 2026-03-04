@@ -47,7 +47,8 @@ jobs:
       # to your project files.
       
       - name: Debug branch
-        run: echo "Running on ref: ${{ github.ref }}"
+        run: |
+         echo "Running on ref: ${{ github.ref }}"
 
 
       # -----------------------------------------------------
