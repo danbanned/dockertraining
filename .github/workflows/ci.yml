@@ -37,6 +37,9 @@ jobs:
 
     steps:
 
+      - name: Debug branch
+        run: echo "Running on ref: ${{ github.ref }}"
+
       # -----------------------------------------------------
       # Step 1: Checkout Repository
       # -----------------------------------------------------

@@ -24,6 +24,9 @@ services: #is what holds our containers
       #we do all this to see if the database is reachable before proceeding forward and to add flags 
 
   app: #this is your Node/Next backend container 
+    image: danny1026/app
+    command: sh -c "env && sleep 3600"
+    #this prints all enviremental variables and keep the container running 
     build: . #builds dockerfile from the current directory thats what the periods for 
     ports:
       - "3000:3000" #maps port 300 inside the container to port 300 on your host machine
