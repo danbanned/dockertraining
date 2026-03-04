@@ -36,10 +36,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
-      - name: Debug branch
-        run: echo "Running on ref: ${{ github.ref }}"
-
       # -----------------------------------------------------
       # Step 1: Checkout Repository
       # -----------------------------------------------------
@@ -49,6 +45,9 @@ jobs:
       # This pulls your repository code into the runner.
       # Without this, the workflow wouldn’t have access
       # to your project files.
+      
+      - name: Debug branch
+        run: echo "Running on ref: ${{ github.ref }}"
 
 
       # -----------------------------------------------------
