@@ -4,7 +4,7 @@ version: "3.9"
 services: #is what holds our containers 
   db: #this is tghe name of our container, so inside services we specify what containers it holds, db is our database container 
   #service name = hostname in docker, i think our db is the service name, meaning services and container are one 
-    image: postgres:15 #pulls official postgres version 15 image from dockerhub
+    image: postgres:15-apline #pulls official postgres version 15 image from dockerhub
     #docker already has prebuilt linux images that your container can use instead of the user manually installign it.
     restart: always #automatically restart the container if it crashes 
     environment: 
@@ -25,6 +25,7 @@ services: #is what holds our containers
 
   app: #this is your Node/Next backend container 
     image: danny1026/app
+    #built locally 
     command: sh -c "env && sleep 3600"
     #this prints all enviremental variables and keep the container running 
     build: . #builds dockerfile from the current directory thats what the periods for 

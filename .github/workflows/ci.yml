@@ -12,11 +12,20 @@ name: CI
 on:
   # Run on every push to ANY branch
   push:
-    branches:
-      - "**"   # "**" means all branches
+    branches: [main,develop]   # "**" means all branches
 
   # Also run when a pull request is opened or updated
   pull_request:
+    branches: [main]
+
+#we define our aws envirmental variables and store the variables key in github secrets
+#these variables are availabel to all our jobs in the workflow - 
+#first we define the region, then the repository and finally our image tag which uses a command to automatically version our image 
+#these varables are creating our aws instance from our yml so when we run our container ecs these help create our instance 
+env:
+    AWS_REGION: us-east-1
+    ECR_REPOSITORY: my-app
+    IMAGE_TAG: ${{ github.sha }}
 
 
 # -----------------------------------------------------------
@@ -24,12 +33,14 @@ on:
 # -----------------------------------------------------------
 # A workflow can have multiple jobs.
 # Each job runs in a fresh virtual machine.
+# a j0b is a collection of steps that we run in our virtual machine ubuntu latest kinda like apline in our dockerfile  
 jobs:
 
   # ---------------------------------------------------------
   # Job Name
   # ---------------------------------------------------------
-  build-and-test:
+  test:
+    name: build-and-test-and-lint
 
     # The operating system environment GitHub provides.
     # ubuntu-latest is a Linux VM maintained by GitHub.
@@ -39,13 +50,15 @@ jobs:
       # -----------------------------------------------------
       # Step 1: Checkout Repository
       # -----------------------------------------------------
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      #we use a action from github that allows us to download the repository code into 
+      #our runner, 
       # This pulls your repository code into the runner.
       # Without this, the workflow wouldn’t have access
       # to your project files.
-      
+      - name: Checkout
+        uses: actions/checkout@v4
+     
+      #call out the version the vm is running 
       - name: Debug branch
         run: |
          echo "Running on ref: ${{ github.ref }}"
@@ -54,40 +67,85 @@ jobs:
       # -----------------------------------------------------
       # Step 2: Setup Node.js
       # -----------------------------------------------------
+           # This installs Node.js version 20 inside the runner.
+      # It also enables npm dependency caching.
+      #
+      # Caching:
+      # - Speeds up future workflow runs by caching 
+      # - Prevents reinstalling all dependencies every time
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      # This installs Node.js version 20 inside the runner.
-      # It also enables npm dependency caching.
-      #
-      # Caching:
-      # - Speeds up future workflow runs
-      # - Prevents reinstalling all dependencies every time
+ 
 
 
       # -----------------------------------------------------
       # Step 3: Install Dependencies
       # -----------------------------------------------------
-      - name: Install deps
+      - name: cl3ean install 
         run: npm ci
 
       # npm ci:
-      # - Uses package-lock.json
+      # - Uses package-lock.json to install exact dependecies 
+      # - and any mismatch it fins the run will automatcially fail
       # - Installs exact dependency versions
       # - Faster and safer for CI than npm install
       #
       # This ensures reproducible builds.
 
+      # -----------------------------------------------------
+      # Step 4: install prisma 
+      # -----------------------------------------------------
+      #we are genrating prisma before we run the test ensuring thsat the tables and dtabase exist 
+      #before we run our container 
+
+      - name: generate prisma client 
+        run: npx prisma generate
+
 
       # -----------------------------------------------------
-      # Step 4: Run Tests
+      # Step 5: Run lint 
       # -----------------------------------------------------
+
+      #linting checks for code style issues or
+      # any potential errors 
+
+      - name: run linter
+        run: npm run lint
+
+
+      # -----------------------------------------------------
+      # Step 5: Final step of test-and-build Run Tests
+      # ----------------------------------------------------
+      #we use npm run test in our working directory 
+      #then we specify the kinda mode the application is running in
+      #in our docker yml file we would define the NODE_ENV  with dvelopemnt 
+      #we use a testing databse string, in ci we test the databse before sending it 
+      #and we use localhost as our container instead of db, this allows for console logging
+
+
+      - name: Build containers
+        run: docker compose build
+
+      - name: Start services
+        run: docker compose up -d
+
+      - name: Wait for database
+        run: sleep 15
+
+      - name: Run migrations
+        run: docker compose exec -T app npx prisma migrate deploy
+
       - name: Run tests
-        run: npm test
+        run: docker compose exec -T app npm test
 
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+        
       # Runs your test suite.
       #
       # If tests fail:
@@ -98,44 +156,101 @@ jobs:
 
 
       # -----------------------------------------------------
-      # Step 5: Build Application
+      # Step 6: Build Application push docker image 
       # -----------------------------------------------------
-      - name: Build app
+  build:
+    name: Build app
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: run build 
         run: npm run build
 
-      # Builds your production app (e.g., Next.js build).
-      #
-      # This verifies:
-      # - Code compiles
-      # - No type errors
-      # - No build-time crashes
+      - name: configuyre aws credidentuals 
+        uses: aws-actions/configure-aws-credentials@v2
 
-      # -----------------------------------------------------
-      # Step 6: Login to Docker Hub
-      # -----------------------------------------------------
-      - name: Login to Docker Hub
-        if: github.ref == 'refs/heads/main'
-        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u ${{ secrets.DOCKER_USERNAME }} --password-stdin
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
 
+      - name: login to amazon ecr 
+        id: login-ecr 
+        uses: aws-actions/amazon-ecr-login@v1
 
-      # -----------------------------------------------------
-      # Step 7: Build Docker Image
-      # -----------------------------------------------------
-      - name: Build Docker image
+      - name: build, tag, and psuh docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-         docker build \
-            -t danny1026/app:${{github.sha}}  \
-            -t danny1026/app:latest \
-            .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-        # | means multiline 
+      - name: scan docker image for vulnerabilities 
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
 
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: 'trivy-results.sarif'
 
-      # -----------------------------------------------------
-      # Step 8: Push Docker Image
-      # -----------------------------------------------------
-      - name: Push Docker image
-        if: github.ref == 'refs/heads/main'
-        run: |
-            docker push danny1026/app:${{github.sha}}
-            docker push danny1026/app:latest
+  deploy:
+    name: deploy to ecs 
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+        #basically our instructions 
+      - name: fill in the new image idin the amazon ecs task defintion 
+        id: task-def
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: .aws/task-definition.json
+          container-name: my-app
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+
+      - name: deploy to amazon ecs service 
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: my-app-service
+          cluster: my-app-cluster
+          wait-for-service-stability: true 
+
+    # Builds your production app (e.g., Next.js build).
+    #
+    # This verifies:
+    # - Code compiles
+    # - No type errors
+    # - No build-time crashes
