@@ -77,4 +77,61 @@ Rules:
 ```bash
 npm ci
 npm run dev
+
+
+# My App - Production-Ready Docker Application
+
+A production-ready Node.js application containerized with Docker, optimized for AWS deployment.
+
+## Features
+
+- 🐳 Multi-stage Docker build for minimal image size
+- 🔒 Security best practices (non-root user, helmet.js)
+- 📊 Health checks and graceful shutdown
+- 🔄 Database (PostgreSQL) and Redis integration
+- 📝 Structured logging with Winston
+- 🚦 CI/CD pipeline with GitHub Actions
+- 🏥 Health check endpoint for container orchestration
+- 🔐 Environment-based configuration
+
+## Quick Start
+
+### Prerequisites
+
+- Docker and Docker Compose
+- Node.js 18+ (for local development)
+- AWS CLI (for deployment)
+
+### Local Development
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/yourusername/my-app.git
+   cd my-app
 ```
+
+# My App - Production-Ready Docker Application for AWS
+
+A production-ready Next.js application containerized with Docker, optimized for AWS deployment (ECS/EKS/Beanstalk).
+
+## 🚀 Features
+
+- **Next.js 14** with App Router support
+- **Docker multi-stage builds** for minimal image size
+- **Prisma ORM** for database management
+- **AWS ECS Fargate** ready configuration
+- **GitHub Actions CI/CD** pipeline
+- **Health checks** and graceful shutdown
+- **Non-root user** for security
+- **Environment-based configuration**
+- **PostgreSQL** and **Redis** integration
+
+## 📋 Prerequisites
+
+- Docker and Docker Compose
+- Node.js 18+ (for local development)
+- AWS CLI (for deployment)
+- An AWS account with ECR and ECS configured
+
+## 🏗️ Project Structure
+

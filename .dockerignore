@@ -1,93 +1,69 @@
-# -----------------------------------------------------------
-# node_modules
-# -----------------------------------------------------------
-# Prevents your local node_modules folder from being copied
-# into the container.
-#
-# Why?
-# Because we already run "npm install" inside the container.
-# Copying local node_modules can:
-# - Break builds (OS mismatch: Mac vs Linux)
-# - Increase image size massively
-# - Cause dependency conflicts
+# Dependencies
 node_modules
+npm-debug.log
+package-lock.json
 
-
-# -----------------------------------------------------------
-# .next
-# -----------------------------------------------------------
-# Excludes the local Next.js build output.
-#
-# We run "npm run build" inside Docker,
-# so we do NOT want to copy your local build files.
-#
-# This ensures the container builds a clean production bundle.
+# Next.js build outputs
 .next
+out
+build
+dist
 
+# Environment files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
 
-# -----------------------------------------------------------
-# .git
-# -----------------------------------------------------------
-# Prevents your Git history from being copied into the image.
-#
-# This:
-# - Reduces image size
-# - Prevents exposing commit history
-# - Keeps the image production-clean
-.git
-
-
-# -----------------------------------------------------------
-# .env*
-# -----------------------------------------------------------
-# Excludes ALL environment files:
-# .env
-# .env.local
-# .env.development
-# etc.
-#
-# Important for security:
-# You should NOT bake secrets into Docker images.
-# Instead, pass environment variables at runtime:
-# docker run -e DATABASE_URL=...
-.env*
-
-
-# -----------------------------------------------------------
-# npm-debug.log*
-# -----------------------------------------------------------
-# Excludes npm debug logs.
-#
-# These are temporary crash logs and not needed in production.
+# Logs
+logs
+*.log
 npm-debug.log*
 
+# Test coverage
+coverage
+.nyc_output
 
-# -----------------------------------------------------------
-# Dockerfile*
-# -----------------------------------------------------------
-# Prevents copying Dockerfiles into the container.
-#
-# The Dockerfile is only needed during the build process,
-# not inside the final running container.
-Dockerfile*
+# Prisma
+prisma/*.db
+prisma/*.db-journal
 
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
 
-# -----------------------------------------------------------
-# README.md
-# -----------------------------------------------------------
-# Prevents copying documentation into the container.
-#
-# Keeps the production image smaller and cleaner.
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Git
+.git
+.gitignore
+
+# AWS
+.aws
+task-definition.json
+
+# Next.js specific
+.next
+out
+build
+dist
+
+# Temporary files
+tmp
+temp
+*.tmp
+
+# Documentation
 README.md
-
-
-# -----------------------------------------------------------
-# .env.production
-# -----------------------------------------------------------
-# Explicitly excludes production env file.
-#
-# Even if you use production secrets,
-# they should be injected at runtime
-# (via Docker, Docker Compose, or CI/CD),
-# NOT copied into the image.
-.env.production
+LICENSE

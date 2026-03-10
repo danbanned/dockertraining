@@ -15,3 +15,4 @@ echo "$LOGS" | grep -Eiq "ready to accept connections|started server|listening" 
 }
 
 echo "Log validation passed."
+exec "$@"

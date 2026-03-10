@@ -26,6 +26,8 @@ env:
     AWS_REGION: us-east-1
     ECR_REPOSITORY: my-app
     IMAGE_TAG: ${{ github.sha }}
+    DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
 
 
 # -----------------------------------------------------------
@@ -35,6 +37,16 @@ env:
 # Each job runs in a fresh virtual machine.
 # a j0b is a collection of steps that we run in our virtual machine ubuntu latest kinda like apline in our dockerfile  
 jobs:
+
+- name: Create env file
+  run: |
+    echo "POSTGRES_USER=postgres" >> .env.production
+    echo "POSTGRES_PASSWORD=postgres" >> .env.production
+    echo "POSTGRES_DB=mydb" >> .env.production
+    echo "DB_PORT=5432" >> .env.production
+    echo "DB_HOST=postgres" >> .env.production
+    echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> .env.production
+
 
   # ---------------------------------------------------------
   # Job Name
@@ -85,7 +97,7 @@ jobs:
       # -----------------------------------------------------
       # Step 3: Install Dependencies
       # -----------------------------------------------------
-      - name: cl3ean install 
+      - name: clean install 
         run: npm ci
 
       # npm ci:
@@ -126,7 +138,6 @@ jobs:
       #we use a testing databse string, in ci we test the databse before sending it 
       #and we use localhost as our container instead of db, this allows for console logging
 
-
       - name: Build containers
         run: docker compose build
 
@@ -134,7 +145,11 @@ jobs:
         run: docker compose up -d
 
       - name: Wait for database
-        run: sleep 15
+        run: |
+          until docker compose exec -T db pg_isready; do
+            echo "Waiting for database..."
+            sleep 2
+          done
 
       - name: Run migrations
         run: docker compose exec -T app npx prisma migrate deploy
@@ -220,10 +235,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
-
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
@@ -231,8 +242,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
         #basically our instructions 
-      - name: fill in the new image idin the amazon ecs task defintion 
+      - name: fill in the new image id in the amazon ecs task defintion 
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -244,8 +259,8 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: my-app-service
-          cluster: my-app-cluster
+          service: my-app-service #keeps cotnainers running 
+          cluster: my-app-cluster #cluster allows for us to have multiple virtual machines 
           wait-for-service-stability: true 
 
     # Builds your production app (e.g., Next.js build).
