@@ -38,16 +38,6 @@ env:
 # a j0b is a collection of steps that we run in our virtual machine ubuntu latest kinda like apline in our dockerfile  
 jobs:
 
-- name: Create env file
-  run: |
-    echo "POSTGRES_USER=postgres" >> .env.production
-    echo "POSTGRES_PASSWORD=postgres" >> .env.production
-    echo "POSTGRES_DB=mydb" >> .env.production
-    echo "DB_PORT=5432" >> .env.production
-    echo "DB_HOST=postgres" >> .env.production
-    echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> .env.production
-
-
   # ---------------------------------------------------------
   # Job Name
   # ---------------------------------------------------------
@@ -69,6 +59,16 @@ jobs:
       # to your project files.
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Create env file
+        run: |
+          echo "POSTGRES_USER=postgres" >> .env.production
+          echo "POSTGRES_PASSWORD=postgres" >> .env.production
+          echo "POSTGRES_DB=mydb" >> .env.production
+          echo "DB_PORT=5432" >> .env.production
+          echo "DB_HOST=postgres" >> .env.production
+          echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> .env.production
+
      
       #call out the version the vm is running 
       - name: Debug branch
