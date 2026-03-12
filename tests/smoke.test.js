@@ -1,4 +1,4 @@
-const fs = require("fs");
+import fs from 'fs';
 
 describe("project checks", () => {
   test("docker compose uses env-based secret injection", () => {

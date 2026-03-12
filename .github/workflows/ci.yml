@@ -21,9 +21,9 @@ on:
 #we define our aws envirmental variables and store the variables key in github secrets
 #these variables are availabel to all our jobs in the workflow - 
 #first we define the region, then the repository and finally our image tag which uses a command to automatically version our image 
-#these varables are creating our aws instance from our yml so when we run our container ecs these help create our instance 
+#these varables are tagging our images, logging us into aws, and telling ecs which image to run 
 env:
-    AWS_REGION: us-east-1
+    AWS_DEFAULT_REGION: us-east-1
     ECR_REPOSITORY: my-app
     IMAGE_TAG: ${{ github.sha }}
     DATABASE_URL: ${{ secrets.DATABASE_URL }}
@@ -202,7 +202,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: login to amazon ecr 
         id: login-ecr 
@@ -244,7 +244,7 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr

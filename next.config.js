@@ -1,18 +1,25 @@
-// next.config.js, next reads this file first when we run npm start or npm run buiuld 
+// next.config.js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
+
   images: {
-    domains: ['localhost'],
-    unoptimized: process.env.NODE_ENV === 'production' ? false : true,
+    unoptimized: process.env.NODE_ENV !== "production",
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "localhost",
+      },
+    ],
   },
+
   // Output standalone for Docker optimization
-  output: 'standalone',
-  // Environment variables to expose to the browser
+  output: "standalone",
+
+  // Environment variables exposed to browser
   env: {
     APP_NAME: process.env.APP_NAME,
   },
-}
+};
 
-module.exports = nextConfig
+module.exports = nextConfig;

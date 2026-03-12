@@ -4,10 +4,10 @@ version: "3.9"
 services: #is what holds our containers 
   db: #this is tghe name of our container, so inside services we specify what containers it holds, db is our database container 
   #service name = hostname in docker, i think our db is the service name, meaning services and container are one 
-    image: postgres:15-apline #pulls official postgres version 15 image from dockerhub
+    image: postgres:15-alpine #pulls official postgres version 15 image from dockerhub
     #docker already has prebuilt linux images that your container can use instead of the user manually installign it.
     restart: always #automatically restart the container if it crashes 
-    environment: 
+    environment:
       POSTGRES_USER: ${POSTGRES_USER} #database is given a username
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} #database is assigned a password 
       POSTGRES_DB: ${POSTGRES_DB} #then we give it a name so when we are ready to start the database this is what runs it 
@@ -15,7 +15,7 @@ services: #is what holds our containers
       - postgres_data:/var/lib/postgresql/data #saves database files
       # to a named volume (persistent storage)
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"] #checks to see if postgres is ready to accept connections 
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"] #checks to see if postgres is ready to accept connections 
       interval: 5s #check every 5 seconds 
       timeout: 5s #fail if no response in 5 seconds
       retries: 5 #try 5 times before marking unhealthy
