@@ -60,7 +60,7 @@ COPY --from=deps /app/node_modules ./node_modules
 # - Prisma folder (schema + migrations)
 # - Public assets
 # - Configuration files
-
+COPY public ./public
 COPY . .
 
 
