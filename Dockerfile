@@ -31,6 +31,8 @@ WORKDIR /app
 # If your dependencies don't change, Docker won't reinstall
 # them on every rebuild — which makes builds faster.
 COPY package.json package-lock.json ./
+# copy the Prisma schema
+COPY prisma ./prisma
 
 # Install all Node dependencies defined in package.json.
 # This includes:

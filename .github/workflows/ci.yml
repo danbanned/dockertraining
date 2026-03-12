@@ -101,6 +101,16 @@ jobs:
       - name: Set DATABASE_URL for Prisma
         run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mydb" >> $GITHUB_ENV
         
+      # -----------------------------------------------------
+      # Step 4: install prisma 
+      # -----------------------------------------------------
+      #we are genrating prisma before we run the test ensuring thsat the tables and dtabase exist 
+      #before we run our container 
+
+      - name: generate prisma client 
+        run: npx prisma generate
+
+
       - name: clean install 
         run: npm ci
 
@@ -111,16 +121,6 @@ jobs:
       # - Faster and safer for CI than npm install
       #
       # This ensures reproducible builds.
-
-      # -----------------------------------------------------
-      # Step 4: install prisma 
-      # -----------------------------------------------------
-      #we are genrating prisma before we run the test ensuring thsat the tables and dtabase exist 
-      #before we run our container 
-
-      - name: generate prisma client 
-        run: npx prisma generate
-
 
       # -----------------------------------------------------
       # Step 5: Run lint 
