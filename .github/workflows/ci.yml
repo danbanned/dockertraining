@@ -105,7 +105,7 @@ jobs:
       # -----------------------------------------------------
 
       - name: Set DATABASE_URL for Prisma
-        run: echo "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/mydb" >> $GITHUB_ENV
+        run: echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> $GITHUB_ENV
         
       - name: clean install 
         run: npm ci
