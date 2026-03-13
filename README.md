@@ -135,3 +135,10 @@ A production-ready Next.js application containerized with Docker, optimized for 
 
 ## 🏗️ Project Structure
 
+ECR repository
+ECS cluster
+ECS service
+Task definition
+Networking
+Security groups
+IAM roles
