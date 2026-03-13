@@ -91,13 +91,6 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: check containers
-        run: docker ps -a
-
-      - name: check DB logs 
-        run: docker logs dockertraining-app-1
-
-
 
 
       # -----------------------------------------------------
@@ -178,6 +171,13 @@ jobs:
       # - The pull request cannot be safely merged
       #
       # This protects your codebase from broken code.
+        
+      - name: check containers
+        run: docker ps -a
+
+      - name: check DB logs 
+        run: docker logs dockertraining-app-1
+
 
 
       # -----------------------------------------------------
