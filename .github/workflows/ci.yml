@@ -1,41 +1,32 @@
 # -----------------------------------------------------------
 # Workflow Name
 # -----------------------------------------------------------
-# This is the name shown in the GitHub Actions tab.
-# It describes what this workflow does.
 name: CI
 
 # -----------------------------------------------------------
 # When This Workflow Runs
 # -----------------------------------------------------------
 on:
-  # Run on every push to ANY branch
   push:
-    branches: [main,develop]   # "**" means all branches
-
-  # Also run when a pull request is opened or updated
+    branches: [main, develop]
   pull_request:
     branches: [main]
 
 # -----------------------------------------------------------
 # Global Environment Variables
 # -----------------------------------------------------------
-# We define our AWS environmental variables and store the variables key in GitHub secrets.
-# These variables are available to all our jobs in the workflow.
-# They tag our images, log us into AWS, and tell ECS which image to run.
 env:
   AWS_DEFAULT_REGION: us-east-1
   ECR_REPOSITORY: my-app
   IMAGE_TAG: ${{ github.sha }}
-  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  POSTGRES_USER: postgres
+  POSTGRES_PASSWORD: postgres
+  POSTGRES_DB: mydb
+  DATABASE_URL: postgresql://postgres:postgres@db:5432/mydb
 
 # -----------------------------------------------------------
 # Jobs Section
 # -----------------------------------------------------------
-# A workflow can have multiple jobs.
-# Each job runs in a fresh virtual machine.
-# A job is a collection of steps that we run in our virtual machine (ubuntu-latest),
-# similar to how Alpine is used in a Dockerfile.
 jobs:
 
   # ---------------------------------------------------------
@@ -46,30 +37,28 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       # -----------------------------------------------------
       # Step 1: Checkout Repository
       # -----------------------------------------------------
-      # We use an action from GitHub that allows us to download the repository code into the runner.
       - name: Checkout
         uses: actions/checkout@v4
 
       # -----------------------------------------------------
-      # Step 2: Create .env.production
+      # Step 2: Create .env file for docker-compose
       # -----------------------------------------------------
       - name: Create env file
         run: |
-          echo "POSTGRES_USER=postgres" >> .env.production
-          echo "POSTGRES_PASSWORD=postgres" >> .env.production
-          echo "POSTGRES_DB=mydb" >> .env.production
-          echo "DB_PORT=5432" >> .env.production
-          echo "DB_HOST=db" >> .env.production
-          echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> .env.production
+          echo "POSTGRES_USER=postgres" > .env
+          echo "POSTGRES_PASSWORD=postgres" >> .env
+          echo "POSTGRES_DB=mydb" >> .env
+          echo "DB_PORT=5432" >> .env
+          echo "DB_HOST=db" >> .env
+          echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> .env
+          echo "NODE_ENV=test" >> .env
 
       # -----------------------------------------------------
       # Step 3: Debug branch
       # -----------------------------------------------------
-      # Call out the branch the VM is running on
       - name: Debug branch
         run: |
           echo "Running on ref: ${{ github.ref }}"
@@ -77,8 +66,6 @@ jobs:
       # -----------------------------------------------------
       # Step 4: Setup Node.js
       # -----------------------------------------------------
-      # This installs Node.js version 20 inside the runner.
-      # It also enables npm dependency caching.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -88,29 +75,18 @@ jobs:
       # -----------------------------------------------------
       # Step 5: Install Dependencies
       # -----------------------------------------------------
-      - name: Set DATABASE_URL for Prisma
-        run: echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> $GITHUB_ENV
-
       - name: Clean install
         run: npm ci
-
-      # npm ci:
-      # - Uses package-lock.json to install exact dependencies 
-      # - Fails automatically if there are mismatches
-      # - Faster and safer for CI than npm install
-      # - Ensures reproducible builds
 
       # -----------------------------------------------------
       # Step 6: Generate Prisma Client
       # -----------------------------------------------------
-      # We generate Prisma client before running tests to ensure tables and DB exist
       - name: Generate Prisma client
         run: npx prisma generate
 
       # -----------------------------------------------------
       # Step 7: Run lint
       # -----------------------------------------------------
-      # Linting checks for code style issues or any potential errors
       - name: Run linter
         run: npm run lint
 
@@ -124,30 +100,26 @@ jobs:
         run: docker compose build
 
       - name: Start services
-        run: docker compose --env-file .env.production run --rm app npx prisma migrate deploy
+        run: docker compose up -d
+
       # -----------------------------------------------------
       # Step 9: Wait for Database
       # -----------------------------------------------------
-      # Wait until PostgreSQL inside the container is ready before running migrations
       - name: Wait for database
         run: |
-          until docker compose exec -T db pg_isready -U postgres -d mydb; do
-            echo "Waiting for database..."
-            sleep 2
-          done
+          timeout 30s sh -c 'until docker compose exec -T db pg_isready -U postgres; do echo "Waiting for database..."; sleep 2; done'
 
       # -----------------------------------------------------
       # Step 10: Run Prisma Migrations
       # -----------------------------------------------------
-      # Uses --env-file to ensure Prisma reads correct DATABASE_URL
       - name: Run migrations
-        run: docker compose --env-file .env.production exec -T app npx prisma migrate deploy
+        run: docker compose exec -T app npx prisma migrate deploy
 
       # -----------------------------------------------------
       # Step 11: Run Tests
       # -----------------------------------------------------
       - name: Run tests
-        run: docker compose --env-file .env.production exec -T app npm test
+        run: docker compose exec -T app npm test
 
       # -----------------------------------------------------
       # Step 12: Tear Down
@@ -167,7 +139,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -178,7 +150,7 @@ jobs:
         run: npm run build
 
       - name: Configure AWS credentials 
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -186,26 +158,26 @@ jobs:
 
       - name: Login to Amazon ECR 
         id: login-ecr 
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Build, tag, and push docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f Dockerfile.prod .
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
       - name: Scan docker image for vulnerabilities 
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.20.0
         with:
           image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           format: 'sarif'
           output: 'trivy-results.sarif'
 
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v2
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
 
@@ -220,10 +192,10 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -231,7 +203,7 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Fill in the new image ID in the Amazon ECS task definition 
         id: task-def
@@ -245,6 +217,6 @@ jobs:
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: my-app-service # Keeps containers running 
-          cluster: my-app-cluster # Cluster allows multiple virtual machines 
+          service: my-app-service
+          cluster: my-app-cluster
           wait-for-service-stability: true
