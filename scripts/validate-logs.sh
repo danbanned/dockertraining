@@ -15,6 +15,12 @@ npx prisma migrate deploy
 echo "running start...."
 npm start
 
+echo "logs" 
+docker logs dockertraining-app-1
+
+echo "container health"
+docker ps -a
+
 echo "$LOGS" | grep -Eiq "ready to accept connections|started server|listening" || {
   echo "No healthy startup markers found in logs."
   exit 1
