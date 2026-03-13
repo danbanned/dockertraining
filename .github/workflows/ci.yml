@@ -124,8 +124,7 @@ jobs:
         run: docker compose build
 
       - name: Start services
-        run: docker compose --env-file .env.production exec -T app npx prisma migrate deploy
-
+        run: docker compose --env-file .env.production run --rm app npx prisma migrate deploy
       # -----------------------------------------------------
       # Step 9: Wait for Database
       # -----------------------------------------------------
