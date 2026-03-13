@@ -66,7 +66,7 @@ jobs:
           echo "POSTGRES_PASSWORD=postgres" >> .env.production
           echo "POSTGRES_DB=mydb" >> .env.production
           echo "DB_PORT=5432" >> .env.production
-          echo "DB_HOST=postgres" >> .env.production
+          echo "DB_HOST=db" >> .env.production
           echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> .env.production
 
      
@@ -90,6 +90,12 @@ jobs:
         with:
           node-version: 20
           cache: npm
+
+      - name: check containers
+        run: docker ps -a
+
+      - name: check DB logs 
+        run: docker logs app
 
 
 

@@ -33,7 +33,7 @@ services: #is what holds our containers
     #this prints all enviremental variables and keep the container running 
     build: . #builds dockerfile from the current directory thats what the periods for 
     ports:
-      - "3000:3000" #maps port 300 inside the container to port 300 on your host machine
+      - "80:3000" #maps port 300 inside the container to port 300 on your host machine
       #this allows you to access the app in your browser at localhost:3000 we arae not connecting serevrs we are just exposing 
       #the containers port to our local machine 
     depends_on:
