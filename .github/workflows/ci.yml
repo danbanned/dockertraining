@@ -141,7 +141,7 @@ jobs:
       # -----------------------------------------------------
       # Uses --env-file to ensure Prisma reads correct DATABASE_URL
       - name: Run migrations
-        run: docker compose --env-file .env.production exec -T app npx prisma migrate deploy
+        run: docker compose --env-file .env exec -T app npx prisma migrate deploy
 
       # -----------------------------------------------------
       # Step 11: Run Tests
