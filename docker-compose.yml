@@ -2,9 +2,12 @@
 version: "3.9"
 
 services: #is what holds our containers 
-  db: #this is tghe name of our container, so inside services we specify what containers it holds, db is our database container 
+  db: #this is tghe name of our container, so inside services we specify what containers it holds, db is our database container
+   
   #service name = hostname in docker, i think our db is the service name, meaning services and container are one 
     image: postgres:15-alpine #pulls official postgres version 15 image from dockerhub
+    env_file:
+    - .env.production
     #docker already has prebuilt linux images that your container can use instead of the user manually installign it.
     restart: always #automatically restart the container if it crashes 
     environment:
