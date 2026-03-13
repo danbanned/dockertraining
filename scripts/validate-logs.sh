@@ -9,6 +9,12 @@ echo "$LOGS" | grep -Eiq "error|exception|failed|panic" && {
   exit 1
 }
 
+echo "running migrations...."
+npx prisma migrate deploy  
+
+echo "running start...."
+npm start
+
 echo "$LOGS" | grep -Eiq "ready to accept connections|started server|listening" || {
   echo "No healthy startup markers found in logs."
   exit 1

@@ -144,4 +144,4 @@ ENTRYPOINT ["dumb-init","--"]
 #
 # That starts the production Next.js server,
 # which serves the built app and handles API routes.
-CMD ["sh", "scripts/validate-logs.sh", "sh", "-c", "npx prisma migrate deploy && npm start"]
+CMD ["sh", "scripts/validate-logs.sh"]
