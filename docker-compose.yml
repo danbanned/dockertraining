@@ -10,7 +10,7 @@ services: #is what holds our containers
     restart: always #automatically restart the container if it crashes 
 
     env_file:
-      - .env.production
+      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER} #database is given a username
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} #database is assigned a password 
@@ -30,9 +30,18 @@ services: #is what holds our containers
   app: #this is your Node/Next backend container 
     image: danny1026/app
     #built locally 
-    command: sh -c "env && sleep 3600"
-    #this prints all enviremental variables and keep the container running 
+
     build: . #builds dockerfile from the current directory thats what the periods for 
+
+    env_file:
+      - .env
+      # connects to postgres using one of our service names which is our "db"
+      # use postgresql://username=postgres:password=postgres@host=db:port=5432/database name=appdb
+      # because docker creates a private network containers talk to ecahother using service names 
+
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+
     ports:
       - "80:3000" #maps port 300 inside the container to port 300 on your host machine
       #this allows you to access the app in your browser at localhost:3000 we arae not connecting serevrs we are just exposing 
@@ -40,15 +49,8 @@ services: #is what holds our containers
     depends_on:
       db: 
         condition: service_healthy #waits until our health check on the db passes before starting the container 
-    env_file:
-      - .env.production
-      # connects to postgres using one of our service names which is our "db"
-      #use postgresql://username=postgres:password=postgres@host=db:port=5432/database name=appdb
-      #because docker creates a private network containers talk to ecahother using service names 
 
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
-
+    
     restart: always #automatically restart the container if it crashes 
     healthcheck:
       # The command Docker runs to determine if the container is healthy.

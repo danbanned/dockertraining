@@ -1,5 +1,5 @@
 // src/index.js - Main application entry point
-require('dotenv').config({ path: process.env.NODE_ENV === 'production' ? '.env.production' : '.env' });
+require('dotenv').config({ path: process.env.NODE_ENV === 'production' ? '.env' : '.env.example' });
 
 const express = require('express');
 const helmet = require('helmet');
