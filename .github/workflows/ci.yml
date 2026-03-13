@@ -95,7 +95,7 @@ jobs:
         run: docker ps -a
 
       - name: check DB logs 
-        run: docker logs app
+        run: docker logs dockertraining-app-1
 
 
 
