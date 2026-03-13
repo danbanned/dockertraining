@@ -42,7 +42,6 @@ services: #is what holds our containers
         condition: service_healthy #waits until our health check on the db passes before starting the container 
     env_file:
       - .env.production
-      - .env
       # connects to postgres using one of our service names which is our "db"
       #use postgresql://username=postgres:password=postgres@host=db:port=5432/database name=appdb
       #because docker creates a private network containers talk to ecahother using service names 
