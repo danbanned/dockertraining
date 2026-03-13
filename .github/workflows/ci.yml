@@ -51,8 +51,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Remove old containers
-        run: docker compose down -v
+    
       # -----------------------------------------------------
       # Step 1: Checkout Repository
       # -----------------------------------------------------
@@ -94,8 +93,12 @@ jobs:
         with:
           node-version: 20
           cache: npm
+       # -----------------------------------------------------
+      # Step 3: reset everything
+      # -----------------------------------------------------
 
-
+      - name: Remove old containers
+        run: docker compose down -v
 
       # -----------------------------------------------------
       # Step 3: Install Dependencies
@@ -145,8 +148,6 @@ jobs:
       #we use a testing databse string, in ci we test the databse before sending it 
       #and we usocalhost as our container instead of db, this allows for console logging
 
-      - name: Build containers
-        run: docker compose build
       - name: what exist
         run: |
           ls -la
@@ -154,7 +155,12 @@ jobs:
             echo ".env.production does not exist!"
             exit 1
           fi
+          docker compose up -d
 
+
+      - name: Build containers
+        run: docker compose build
+      
       - name: Start services
         run: docker compose up -d
 
