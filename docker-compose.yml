@@ -15,7 +15,7 @@ services: #is what holds our containers
       - postgres_data:/var/lib/postgresql/data #saves database files
       # to a named volume (persistent storage)
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"] #checks to see if postgres is ready to accept connections 
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"] #checks to see if postgres is ready to accept connections 
       interval: 5s #check every 5 seconds 
       timeout: 5s #fail if no response in 5 seconds
       retries: 5 #try 5 times before marking unhealthy
