@@ -71,7 +71,8 @@ jobs:
       # -----------------------------------------------------
       # Call out the branch the VM is running on
       - name: Debug branch
-        run: echo "Running on ref: ${{ github.ref }}"
+        run: |
+          echo "Running on ref: ${{ github.ref }}"
 
       # -----------------------------------------------------
       # Step 4: Setup Node.js
