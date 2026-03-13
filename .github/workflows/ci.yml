@@ -155,14 +155,13 @@ jobs:
             echo ".env.production does not exist!"
             exit 1
           fi
-          docker compose up -d
 
 
       - name: Build containers
         run: docker compose build
       
       - name: Start services
-        run: docker compose up -d
+        run: docker compose --env-file .env.production up -d
 
       - name: Wait for database
         run: |
