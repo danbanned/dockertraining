@@ -5,7 +5,6 @@
 # It describes what this workflow does.
 name: CI
 
-
 # -----------------------------------------------------------
 # When This Workflow Runs
 # -----------------------------------------------------------
@@ -18,51 +17,46 @@ on:
   pull_request:
     branches: [main]
 
-  
-
-#we define our aws envirmental variables and store the variables key in github secrets
-#these variables are availabel to all our jobs in the workflow - 
-#first we define the region, then the repository and finally our image tag which uses a command to automatically version our image 
-#these varables are tagging our images, logging us into aws, and telling ecs which image to run 
+# -----------------------------------------------------------
+# Global Environment Variables
+# -----------------------------------------------------------
+# We define our AWS environmental variables and store the variables key in GitHub secrets.
+# These variables are available to all our jobs in the workflow.
+# They tag our images, log us into AWS, and tell ECS which image to run.
 env:
-    AWS_DEFAULT_REGION: us-east-1
-    ECR_REPOSITORY: my-app
-    IMAGE_TAG: ${{ github.sha }}
-    DATABASE_URL: ${{ secrets.DATABASE_URL }}
-
-
+  AWS_DEFAULT_REGION: us-east-1
+  ECR_REPOSITORY: my-app
+  IMAGE_TAG: ${{ github.sha }}
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
 # -----------------------------------------------------------
 # Jobs Section
 # -----------------------------------------------------------
 # A workflow can have multiple jobs.
 # Each job runs in a fresh virtual machine.
-# a j0b is a collection of steps that we run in our virtual machine ubuntu latest kinda like apline in our dockerfile  
+# A job is a collection of steps that we run in our virtual machine (ubuntu-latest),
+# similar to how Alpine is used in a Dockerfile.
 jobs:
 
   # ---------------------------------------------------------
-  # Job Name
+  # Job Name: Test, Build and Lint
   # ---------------------------------------------------------
   test:
     name: build-and-test-and-lint
-
-    # The operating system environment GitHub provides.
-    # ubuntu-latest is a Linux VM maintained by GitHub.
     runs-on: ubuntu-latest
 
     steps:
-    
+
       # -----------------------------------------------------
       # Step 1: Checkout Repository
       # -----------------------------------------------------
-      #we use a action from github that allows us to download the repository code into 
-      #our runner, 
-      # This pulls your repository code into the runner.
-      # Without this, the workflow wouldn’t have access
-      # to your project files.
+      # We use an action from GitHub that allows us to download the repository code into the runner.
       - name: Checkout
         uses: actions/checkout@v4
 
+      # -----------------------------------------------------
+      # Step 2: Create .env.production
+      # -----------------------------------------------------
       - name: Create env file
         run: |
           echo "POSTGRES_USER=postgres" >> .env.production
@@ -72,97 +66,69 @@ jobs:
           echo "DB_HOST=db" >> .env.production
           echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> .env.production
 
-     
-      #call out the version the vm is running 
+      # -----------------------------------------------------
+      # Step 3: Debug branch
+      # -----------------------------------------------------
+      # Call out the branch the VM is running on
       - name: Debug branch
-        run: |
-         echo "Running on ref: ${{ github.ref }}"
-
+        run: echo "Running on ref: ${{ github.ref }}"
 
       # -----------------------------------------------------
-      # Step 2: Setup Node.js
+      # Step 4: Setup Node.js
       # -----------------------------------------------------
-           # This installs Node.js version 20 inside the runner.
+      # This installs Node.js version 20 inside the runner.
       # It also enables npm dependency caching.
-      #
-      # Caching:
-      # - Speeds up future workflow runs by caching 
-      # - Prevents reinstalling all dependencies every time
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-       # -----------------------------------------------------
-      # Step 3: reset everything
-      # -----------------------------------------------------
-
-      - name: Remove old containers
-        run: docker compose down -v
 
       # -----------------------------------------------------
-      # Step 3: Install Dependencies
+      # Step 5: Install Dependencies
       # -----------------------------------------------------
-
       - name: Set DATABASE_URL for Prisma
         run: echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> $GITHUB_ENV
-        
-      - name: clean install 
+
+      - name: Clean install
         run: npm ci
 
       # npm ci:
-      # - Uses package-lock.json to install exact dependecies 
-      # - and any mismatch it fins the run will automatcially fail
-      # - Installs exact dependency versions
+      # - Uses package-lock.json to install exact dependencies 
+      # - Fails automatically if there are mismatches
       # - Faster and safer for CI than npm install
-      #
-      # This ensures reproducible builds.
+      # - Ensures reproducible builds
 
       # -----------------------------------------------------
-      # Step 4: install prisma 
+      # Step 6: Generate Prisma Client
       # -----------------------------------------------------
-      #we are genrating prisma before we run the test ensuring thsat the tables and dtabase exist 
-      #before we run our container 
-
-      - name: generate prisma client 
+      # We generate Prisma client before running tests to ensure tables and DB exist
+      - name: Generate Prisma client
         run: npx prisma generate
 
-
       # -----------------------------------------------------
-      # Step 5: Run lint 
+      # Step 7: Run lint
       # -----------------------------------------------------
-
-      #linting checks for code style issues or
-      # any potential errors 
-
-      - name: run linter
+      # Linting checks for code style issues or any potential errors
+      - name: Run linter
         run: npm run lint
 
-
       # -----------------------------------------------------
-      # Step 5: Final step of test-and-build Run Tests
-      # ----------------------------------------------------
-      #we use npm run test in our working directory 
-      #then we specify the kinda mode the application is running in
-      #in our docker yml file we would define the NODE_ENV  with dvelopemnt 
-      #we use a testing databse string, in ci we test the databse before sending it 
-      #and we usocalhost as our container instead of db, this allows for console logging
-
-      - name: what exist
-        run: |
-          ls -la
-          if [ ! -f .env.production ]; then
-            echo ".env.production does not exist!"
-            exit 1
-          fi
-
+      # Step 8: Build and Start Docker Containers
+      # -----------------------------------------------------
+      - name: Remove old containers
+        run: docker compose down -v
 
       - name: Build containers
         run: docker compose build
-      
+
       - name: Start services
         run: docker compose --env-file .env.production up -d
 
+      # -----------------------------------------------------
+      # Step 9: Wait for Database
+      # -----------------------------------------------------
+      # Wait until PostgreSQL inside the container is ready before running migrations
       - name: Wait for database
         run: |
           until docker compose exec -T db pg_isready -U postgres -d mydb; do
@@ -170,35 +136,34 @@ jobs:
             sleep 2
           done
 
+      # -----------------------------------------------------
+      # Step 10: Run Prisma Migrations
+      # -----------------------------------------------------
+      # Uses --env-file to ensure Prisma reads correct DATABASE_URL
       - name: Run migrations
-        run: docker compose exec -T app npx prisma migrate deploy
+        run: docker compose --env-file .env.production exec -T app npx prisma migrate deploy
 
+      # -----------------------------------------------------
+      # Step 11: Run Tests
+      # -----------------------------------------------------
       - name: Run tests
-        run: docker compose exec -T app npm test
+        run: docker compose --env-file .env.production exec -T app npm test
 
+      # -----------------------------------------------------
+      # Step 12: Tear Down
+      # -----------------------------------------------------
       - name: Tear down
         if: always()
         run: docker compose down -v
-        
-      # Runs your test suite.
-      #
-      # If tests fail:
-      # - The workflow fails
-      # - The pull request cannot be safely merged
-      #
-      # This protects your codebase from broken code.
 
-
-
-      # -----------------------------------------------------
-      # Step 6: Build Application push docker image 
-      # -----------------------------------------------------
+  # -----------------------------------------------------
+  # Job Name: Build Application & Push Docker Image
+  # -----------------------------------------------------
   build:
     name: Build app
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
 
     steps:
       - name: Checkout code
@@ -209,22 +174,21 @@ jobs:
         with:
           node-version: 20
 
-      - name: run build 
+      - name: Run build 
         run: npm run build
 
-      - name: configuyre aws credidentuals 
+      - name: Configure AWS credentials 
         uses: aws-actions/configure-aws-credentials@v2
-
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: login to amazon ecr 
+      - name: Login to Amazon ECR 
         id: login-ecr 
         uses: aws-actions/amazon-ecr-login@v1
 
-      - name: build, tag, and psuh docker image
+      - name: Build, tag, and push docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
@@ -233,7 +197,7 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-      - name: scan docker image for vulnerabilities 
+      - name: Scan docker image for vulnerabilities 
         uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
@@ -245,12 +209,15 @@ jobs:
         with:
           sarif_file: 'trivy-results.sarif'
 
+  # -----------------------------------------------------
+  # Job Name: Deploy to ECS
+  # -----------------------------------------------------
   deploy:
-    name: deploy to ecs 
+    name: Deploy to ECS 
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -266,8 +233,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
 
-        #basically our instructions 
-      - name: fill in the new image id in the amazon ecs task defintion 
+      - name: Fill in the new image ID in the Amazon ECS task definition 
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -275,17 +241,10 @@ jobs:
           container-name: my-app
           image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
 
-      - name: deploy to amazon ecs service 
+      - name: Deploy to Amazon ECS service 
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: my-app-service #keeps cotnainers running 
-          cluster: my-app-cluster #cluster allows for us to have multiple virtual machines 
-          wait-for-service-stability: true 
-
-    # Builds your production app (e.g., Next.js build).
-    #
-    # This verifies:
-    # - Code compiles
-    # - No type errors
-    # - No build-time crashes
+          service: my-app-service # Keeps containers running 
+          cluster: my-app-cluster # Cluster allows multiple virtual machines 
+          wait-for-service-stability: true
