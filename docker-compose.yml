@@ -1,5 +1,4 @@
 #the first thing we do is add our version which tells docker which compose file format version were using 
-version: "3.9"
 
 services: #is what holds our containers 
   db: #this is tghe name of our container, so inside services we specify what containers it holds, db is our database container
