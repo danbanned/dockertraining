@@ -1,5 +1,8 @@
 # -----------------------------------------------------------
-# Workflow Name
+# Workflow Name -Multi-Registry Docker Deployment
+# The CI/CD pipeline builds a Docker image once and publishes it to both
+# Amazon ECR and GitHub Container Registry (GHCR). This allows different
+# deployment environments to pull the image from their preferred registry.
 # -----------------------------------------------------------
 # This is the name shown in the GitHub Actions tab.
 # It describes what this workflow does.
@@ -205,6 +208,7 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push ghcr.io/${{ github.repository }}:$IMAGE_TAG
           docker push ghcr.io/${{ github.repository }}:latest
+        # github injects the envirmental varianble automatically when a workflow runs 
 
       - name: Scan docker image for vulnerabilities 
         uses: aquasecurity/trivy-action@0.20.0  # Pinned to specific version
