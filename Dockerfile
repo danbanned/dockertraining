@@ -64,7 +64,8 @@ COPY public ./public
 COPY . .
 
 
-
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
 
 
 # -----------------------------------------------------------

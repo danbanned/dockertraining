@@ -102,6 +102,8 @@ jobs:
       # - Faster and safer for CI than npm install
       # - Ensures reproducible builds
 
+      
+
       # -----------------------------------------------------
       # Step 6: Generate Prisma Client
       # -----------------------------------------------------
@@ -169,6 +171,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4  # Updated to v4
@@ -177,6 +180,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
+      - name: Build and Push Docker Image
+        run: |
+          docker build \
+            --build-arg DATABASE_URL=${{ secrets.DATABASE_URL }} \
+            -t my-app .
 
       - name: Run build 
         run: npm run build
