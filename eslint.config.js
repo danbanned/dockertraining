@@ -10,6 +10,18 @@ export default defineConfig([
   prettier,
 
   {
+    ignores: [
+      "node_modules",
+      "generated",
+      "generated/prisma",
+      ".prisma",
+      "dist",
+      "build",
+      ".next"
+    ]
+  },
+
+  {
     files: ['**/__tests__/**','app/**/*.js'],
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
