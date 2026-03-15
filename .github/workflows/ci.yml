@@ -189,14 +189,22 @@ jobs:
         id: login-ecr 
         uses: aws-actions/amazon-ecr-login@v2  # Updated to v2
 
+      - name: Login to GHCR
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+
       - name: Build, tag, and push docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest && \
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ghcr.io/${{ github.repository }}:$IMAGE_TAG && \
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ghcr.io/${{ github.repository }}:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push ghcr.io/${{ github.repository }}:$IMAGE_TAG
+          docker push ghcr.io/${{ github.repository }}:latest
 
       - name: Scan docker image for vulnerabilities 
         uses: aquasecurity/trivy-action@0.20.0  # Pinned to specific version

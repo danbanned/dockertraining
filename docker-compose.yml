@@ -4,7 +4,10 @@ services: #is what holds our containers
   db: #this is tghe name of our container, so inside services we specify what containers it holds, db is our database container
    
   #service name = hostname in docker, i think our db is the service name, meaning services and container are one 
-    image: postgres:15-alpine #pulls official postgres version 15 image from dockerhub
+    image: postgres:15-alpine #pulls official postgres version 15 image from 
+    
+    ports:
+      - "5432:5432"
     #docker already has prebuilt linux images that your container can use instead of the user manually installign it.
     restart: always #automatically restart the container if it crashes 
 
@@ -37,9 +40,6 @@ services: #is what holds our containers
       # connects to postgres using one of our service names which is our "db"
       # use postgresql://username=postgres:password=postgres@host=db:port=5432/database name=appdb
       # because docker creates a private network containers talk to ecahother using service names 
-
-    environment:
-      DATABASE_URL: ${DATABASE_URL}
 
     ports:
       - "80:3000" #maps port 300 inside the container to port 300 on your host machine
