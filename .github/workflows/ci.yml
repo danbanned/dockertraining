@@ -154,7 +154,7 @@ jobs:
       - name: Wait for database
         run: |
           for i in {1..10}; do
-            if docker compose exec -T db pg_isready -U postgres -d mydb_test; then
+            if docker compose exec -T dockertraining-db-1 pg_isready -U postgres -d mydb_test; then
               echo "Database is ready ✅"
               exit 0
             fi
@@ -171,7 +171,7 @@ jobs:
       # -----------------------------------------------------
       # Uses --env-file to ensure Prisma reads correct DATABASE_URL
       - name: Run migrations
-        run: docker compose --env-file .env exec -T dockertraining npx prisma migrate deploy
+        run: docker compose --env-file .env exec -T dockertraining-app-1 npx prisma migrate deploy
         # FIX: No need for env var here - .env file provides it
         #work for me 
 
@@ -179,7 +179,7 @@ jobs:
       # Step 11: Run Tests
       # -----------------------------------------------------
       - name: Run tests
-        run: docker compose exec -T dockertraining npm test
+        run: docker compose exec -T dockertraining-app-1 npm test
 
       # -----------------------------------------------------
       # Step 12: Upload test results - FIX: Added to save test artifacts
