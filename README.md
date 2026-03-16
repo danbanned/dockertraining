@@ -1,3 +1,127 @@
+# WHAT CI WORKFLOW DOES 
+
+1️⃣ Runs Automatically
+The workflow runs when:
+Code is pushed to main or develop
+A pull request is opened for main
+
+It also prevents multiple workflows running at the same time using concurrency control.
+
+Job 1: Test and Lint
+
+This job verifies that the application works correctly before building or deploying.
+
+What it does
+
+Downloads your repository code
+
+Creates a .env file for testing
+
+Installs Node.js and dependencies
+
+Generates Prisma database client
+
+Runs a linter to check code quality
+
+Builds and starts Docker containers
+
+Starts a PostgreSQL database
+
+Waits for the database to become ready
+
+Runs Prisma database migrations
+
+Runs automated tests
+
+Uploads test results as artifacts
+
+Stops and removes containers
+
+If any step fails, the workflow stops and does not continue.
+
+Job 2: Build Docker Image
+
+This job runs only if tests pass.
+
+What it does
+
+Builds your Docker image
+
+Uses Docker layer caching to speed up builds
+
+Logs into AWS ECR
+
+Logs into GitHub Container Registry (GHCR)
+
+Builds the image once
+
+Tags the image
+
+Pushes the image to two registries
+
+Amazon ECR
+
+GitHub Container Registry
+
+Scans the image for security vulnerabilities using Trivy
+
+Uploads vulnerability reports to GitHub
+
+This ensures your container image is secure and stored in multiple registries.
+
+Job 3: Deploy to AWS
+
+This job runs only on pushes to the main branch.
+
+What it does
+
+Authenticates to AWS using OIDC (secure role-based auth)
+
+Updates the ECS task definition with the new Docker image
+
+Deploys the updated container to AWS ECS
+
+Waits for the service to stabilize
+
+Confirms the deployment succeeded
+
+Your application is then running in AWS ECS.
+
+Security Features in Your Workflow
+
+Your pipeline includes several best practices:
+
+OIDC authentication to AWS (no long-lived credentials)
+
+Secret management through GitHub Secrets
+
+Docker vulnerability scanning
+
+Separate test database from production
+
+Automatic cleanup of containers
+
+Concurrency protection
+
+Job timeouts to prevent stuck builds
+
+End Result
+
+When you push code:
+
+Code is tested automatically
+
+Docker containers are built and verified
+
+A secure Docker image is created
+
+The image is pushed to ECR and GHCR
+
+The application is automatically deployed to AWS ECS
+
+✅ In one sentence:
+Your ci.yml creates a fully automated CI/CD pipeline that tests your code, builds a Docker image, scans it for vulnerabilities, pushes it to container registries, and deploys it to AWS ECS.
+
 # BrightPath Tutoring
 
 BrightPath Tutoring is a student-focused platform for tutor matching, session scheduling, and progress visibility.
