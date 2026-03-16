@@ -298,7 +298,7 @@ jobs:
   # Job Name: Deploy to ECS
   # -----------------------------------------------------
   deploy:
-    name: Deploy to ECS
+    name: Deploy to ECS and EC2 
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'

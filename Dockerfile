@@ -13,7 +13,8 @@ FROM node:20-alpine AS deps
 # Install dumb-init for proper signal handling, places a receptionist in formnt of your apps folodr directory 
 RUN apk add --no-cache dumb-init
 
-
+# so our script works make sure bash is installed in your Docker image.
+RUN apk add --no-cache bash dos2unix curl git ca-certificates && update-ca-certificates
 # -----------------------------------------------------------
 # Working Directory
 # -----------------------------------------------------------
@@ -40,8 +41,8 @@ COPY prisma ./prisma
 # - React
 # - Prisma
 # - Any other libraries your app depends on
-RUN npm ci
 
+RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000
 # Development stage 
 FROM node:20-alpine AS builder
 
@@ -62,6 +63,10 @@ COPY --from=deps /app/node_modules ./node_modules
 # - Configuration files
 COPY public ./public
 COPY . .
+
+# Convert line endings & make script executable
+RUN dos2unix scripts/validate-logs.sh
+RUN chmod +x scripts/validate-logs.sh
 
 
 ARG DATABASE_URL
@@ -91,19 +96,20 @@ RUN npm run build
 
 #production stage
 
+# production stage
 FROM node:20-alpine AS runner
 
-#Install dumb-init and curl for health checks 
-RUN apk add --no-cache dumb-init curl 
+# Install bash, dumb-init, curl for health checks
+RUN apk add --no-cache dumb-init curl bash dos2unix
 
-#create non-rrot user 
+# create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
-#set working directory 
-WORKDIR /app 
+# set working directory
+WORKDIR /app
 
-#COPY buit application and dependecies from our build stage using chown to nake sure its a non root user 
+# copy built app + dependencies from builder
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
@@ -112,36 +118,23 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./next.config.js
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 
-#set envirmenetal varaiables 
+# Convert line endings & make scripts executable
+RUN dos2unix scripts/validate-logs.sh
+RUN chmod +x scripts/validate-logs.sh
 
+# set env variables
 ENV NODE_ENV=production \
     PORT=3000 \
     NEXT_TELEMETRY_DISABLED=1
 
-# -----------------------------------------------------------
-# Expose Port
-# -----------------------------------------------------------
-# Exposes port 3000 inside the container.
-# This tells Docker that the app runs on port 3000.
-# You still need to map this port when running the container:
-#   docker run -p 3000:3000 ...
+# expose port
 EXPOSE 3000
 
-#specifying who the non root user is 
+# use dumb-init as init process
+ENTRYPOINT ["dumb-init", "--"]
+
+# switch to non-root user
 USER nextjs
 
-
-#use dumb-init as intitprocess for propersignal jhandling 
-ENTRYPOINT ["dumb-init","--"]
-
-# -----------------------------------------------------------
-# Start the Application
-# -----------------------------------------------------------
-# This is the command Docker runs when the container starts.
-#
-# "npm start" usually runs:
-#   next start
-#
-# That starts the production Next.js server,
-# which serves the built app and handles API routes.
-CMD ["sh", "scripts/validate-logs.sh"]
+# start app
+CMD ["bash", "scripts/validate-logs.sh"]

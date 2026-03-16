@@ -7,7 +7,7 @@ services: #is what holds our containers
     image: postgres:15-alpine #pulls official postgres version 15 image from 
     
     ports:
-      - "5432:5432"
+      - "5433:5432"
     #docker already has prebuilt linux images that your container can use instead of the user manually installign it.
     restart: always #automatically restart the container if it crashes 
 

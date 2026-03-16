@@ -1,30 +1,8 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euo pipefail  # fixed pipefail
 
-echo "Checking container logs for failure signals..."
-LOGS="$(docker compose logs --tail=120 app db 2>&1 || true)"
+echo "Running migrations..."
+npx prisma migrate deploy || { echo "Migrations failed"; exit 1; }
 
-echo "$LOGS" | grep -Eiq "error|exception|failed|panic" && {
-  echo "Detected failure markers in logs."
-  exit 1
-}
-
-echo "running migrations...."
-npx prisma migrate deploy  
-
-echo "running start...."
-npm start
-
-echo "logs" 
-docker logs dockertraining-app-1
-
-echo "container health"
-docker ps -a
-
-echo "$LOGS" | grep -Eiq "ready to accept connections|started server|listening" || {
-  echo "No healthy startup markers found in logs."
-  exit 1
-}
-
-echo "Log validation passed."
-exec "$@"
+echo "Starting app..."
+exec npm start
