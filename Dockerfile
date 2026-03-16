@@ -6,7 +6,7 @@
 # the image small and efficient.
 # This image already contains Node.js and npm installed.
 # dockerfile mlti-stage build for next.js application 
-FROM node:20-alpine as deps 
+FROM node:20-alpine AS deps 
 
 
 
@@ -80,7 +80,6 @@ ENV DATABASE_URL=$DATABASE_URL
 #
 # Your application uses this generated client to communicate
 # with your database (PostgreSQL, MySQL, etc.).
-RUN npx prisma generate
 
 # -----------------------------------------------------------
 # Build Application
