@@ -119,8 +119,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./next.config.js
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 
 # Convert line endings & make scripts executable
-RUN dos2unix scripts/validate-logs.sh
-RUN chmod +x scripts/validate-logs.sh
+RUN dos2unix /app/scripts/validate-logs.sh
+RUN chmod +x /app/scripts/validate-logs.sh
 
 # set env variables
 ENV NODE_ENV=production \
@@ -137,4 +137,4 @@ ENTRYPOINT ["dumb-init", "--"]
 USER nextjs
 
 # start app
-CMD ["bash", "scripts/validate-logs.sh"]
+CMD ["/bin/bash", "/app/scripts/validate-logs.sh"]
