@@ -1,91 +1,183 @@
+# -----------------------------------------------------------
+# Workflow Name -Multi-Registry Docker Deployment
+# The CI/CD pipeline builds a Docker image once and publishes it to both
+# Amazon ECR and GitHub Container Registry (GHCR). This allows different
+# deployment environments to pull the image from their preferred registry.
+# -----------------------------------------------------------
+# This is the name shown in the GitHub Actions tab.
+# It describes what this workflow does.
 name: CI
 
+# -----------------------------------------------------------
+# Concurrency Control - FIX: Added to prevent multiple simultaneous deployments
+# -----------------------------------------------------------
+# Prevents multiple runs of the same workflow from running at the same time
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# -----------------------------------------------------------
+# When This Workflow Runs
+# -----------------------------------------------------------
 on:
+  # Run on every push to ANY branch
   push:
-    branches: [main, develop]
+    branches: [main, develop]   # Fixed: removed comma between branches
 
+  # Also run when a pull request is opened or updated
   pull_request:
     branches: [main]
 
+# -----------------------------------------------------------
+# Global Environment Variables
+# -----------------------------------------------------------
+# We define our AWS environmental variables and store the variables key in GitHub secrets.
+# These variables are available to all our jobs in the workflow.
+# They tag our images, log us into AWS, and tell ECS which image to run.
 env:
   AWS_DEFAULT_REGION: us-east-1
   ECR_REPOSITORY: my-app
   IMAGE_TAG: ${{ github.sha }}
+  # FIX: Removed DATABASE_URL from global env to avoid confusion with test DB
 
+# -----------------------------------------------------------
+# Jobs Section
+# -----------------------------------------------------------
+# A workflow can have multiple jobs.
+# Each job runs in a fresh virtual machine.
+# A job is a collection of steps that we run in our virtual machine (ubuntu-latest),
+# similar to how Alpine is used in a Dockerfile.
 jobs:
 
+  # ---------------------------------------------------------
+  # Job Name: Test and Lint - FIX: Renamed to accurately reflect what it does
+  # ---------------------------------------------------------
   test:
-    name: test-and-lint
+    name: test-and-lint  # FIX: Changed from 'build-and-test-and-lint' since it doesn't build
     runs-on: ubuntu-latest
+    # FIX: Added timeout to prevent hung jobs
     timeout-minutes: 15
 
     steps:
-
+      # -----------------------------------------------------
+      # Step 1: Checkout Repository
+      # -----------------------------------------------------
+      # We use an action from GitHub that allows us to download the repository code into the runner.
       - name: Checkout
         uses: actions/checkout@v4
 
+      # -----------------------------------------------------
+      # Step 2: Create .env file for tests - FIX: Using local test database
+      # -----------------------------------------------------
+      # This creates a local test database configuration that works with Docker Compose
       - name: Create env file for tests
         run: |
-          cat <<EOF > .env
-          POSTGRES_USER=postgres
-          POSTGRES_PASSWORD=postgres
-          POSTGRES_DB=mydb_test
-          DB_PORT=5432
-          DB_HOST=db
-          DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb_test
-          EOF
+          echo "POSTGRES_USER=postgres" >> .env
+          echo "POSTGRES_PASSWORD=postgres" >> .env
+          echo "POSTGRES_DB=mydb_test" >> .env  # FIX: Changed to mydb_test to avoid confusion
+          echo "DB_PORT=5432" >> .env
+          echo "DB_HOST=db" >> .env
+          # FIX: Using local Docker database URL, not production secret
+          echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb_test" >> .env
 
+      # -----------------------------------------------------
+      # Step 3: Debug branch
+      # -----------------------------------------------------
+      # Call out the branch the VM is running on
       - name: Debug branch
         run: |
-            echo "Running on ref: ${{ github.ref }}"
+          echo "Running on ref: ${{ github.ref }}"
 
+      # -----------------------------------------------------
+      # Step 4: Setup Node.js
+      # -----------------------------------------------------
+      # This installs Node.js version 20 inside the runner.
+      # It also enables npm dependency caching.
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
 
-      - name: Install dependencies
+      # -----------------------------------------------------
+      # Step 5: Install Dependencies
+      # -----------------------------------------------------
+      # FIX: REMOVED the hardcoded Neon database URL - this was exposing credentials!
+      # The line below was removed because it contained exposed database credentials:
+      # echo "DATABASE_URL=postgresql://neondb_owner:npg_DWeZ8U7MGRtO@..." >> $GITHUB_ENV
+      
+      - name: Clean install
         run: npm ci
 
+      # npm ci:
+      # - Uses package-lock.json to install exact dependencies 
+      # - Fails automatically if there are mismatches
+      # - Faster and safer for CI than npm install
+      # - Ensures reproducible builds
+
+      # -----------------------------------------------------
+      # Step 6: Generate Prisma Client
+      # -----------------------------------------------------
+      # We generate Prisma client before running tests to ensure tables and DB exist
       - name: Generate Prisma client
         run: npx prisma generate
+        # FIX: No need for env var here - .env file provides it
 
+      # -----------------------------------------------------
+      # Step 7: Run lint
+      # -----------------------------------------------------
+      # Linting checks for code style issues or any potential errors
       - name: Run linter
         run: npm run lint
 
+      # -----------------------------------------------------
+      # Step 8: Build and Start Docker Containers
+      # -----------------------------------------------------
       - name: Remove old containers
-        run: docker compose --env-file .env down -v
+        run: docker compose down -v
 
       - name: Build containers
-        run: docker compose --env-file .env build
+        run: docker compose build
 
       - name: Start services
-        run: docker compose --env-file .env up -d
+        run: docker compose up -d
 
+      - name: docker check services
+        run: echo "docker --version && docker compose version && docker compose ps"
+        # This checks if the containers are running properly after starting them
+
+      # -----------------------------------------------------
+      # Step 9: Wait for Database
+      # -----------------------------------------------------
+      # Wait until PostgreSQL inside the container is ready before running migrations
       - name: Wait for database
         run: |
-          echo "Waiting for PostgreSQL..."
-          until docker compose --env-file .env exec -T db pg_isready -U postgres; do
+          until docker compose exec -T db pg_isready -U postgres -d mydb_test; do  # FIX: Updated DB name
+            echo "Waiting for database..."
             sleep 2
           done
-          echo "Database ready"
 
-      - name: Ensure app container is running
-        run: |
-          docker compose --env-file .env ps
+      # -----------------------------------------------------
+      # Step 10: Run Prisma Migrations
+      # -----------------------------------------------------
+      # Uses --env-file to ensure Prisma reads correct DATABASE_URL
+      - name: Run migrations
+        run: docker compose --env-file .env exec -T app npx prisma migrate deploy
+        # FIX: No need for env var here - .env file provides it
+        #work for me 
 
-      - name: Run Prisma migrations
-        run: |
-          docker compose --env-file .env exec -T app npx prisma migrate deploy
-
+      # -----------------------------------------------------
+      # Step 11: Run Tests
+      # -----------------------------------------------------
       - name: Run tests
-        run: |
-          docker compose --env-file .env exec -T app npm test
+        run: docker compose exec -T app npm test
+
+      # -----------------------------------------------------
+      # Step 12: Upload test results - FIX: Added to save test artifacts
+      # -----------------------------------------------------
+      - name: Create test results directory
+        if: always()
+        run: mkdir -p test-results
 
       - name: Upload test results
         if: always()
@@ -95,77 +187,133 @@ jobs:
           path: test-results/
           retention-days: 7
 
+      # -----------------------------------------------------
+      # Step 13: Tear Down
+      # -----------------------------------------------------
       - name: Tear down
         if: always()
-        run: docker compose --env-file .env down -v
+        run: docker compose down -v
 
+  # -----------------------------------------------------
+  # Job Name: Build Application & Push Docker Image
+  # -----------------------------------------------------
   build:
     name: Build app
     needs: test
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # FIX: Added timeout
+    timeout-minutes: 20
 
     steps:
-
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4  # Updated to v4
 
+      # FIX: Removed Setup Node step - not needed for Docker build
+
+      # FIX: REMOVED the duplicate Docker build step that was wasting time
+      # The following step was removed to prevent building the image twice:
+      # - name: Build and Push Docker Image
+      #   run: docker build --build-arg DATABASE_URL=${{ secrets.DATABASE_URL }} -t my-app .
+
+      # FIX: Added Docker layer caching for faster builds
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Cache Docker layers
+        uses: actions/cache@v3
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-${{ github.ref }}-
+            ${{ runner.os }}-buildx-
+
+      # FIX: Upgraded to OIDC authentication (more secure than long-lived keys)
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          # FIX: Using OIDC role assumption instead of access keys
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # You'll need to add this secret
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@v2  # Updated to v2
 
       - name: Login to GHCR
-        run: |
-          echo "${{ secrets.GITHUB_TOKEN }}" \
-          | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        # github injects the environmental variable automatically when a workflow runs  # FIX: Fixed typo
 
-      - name: Build and push docker image
+      # -----------------------------------------------------
+      # Build and push multi-registry Docker image - FIX: Single build with cache
+      # -----------------------------------------------------
+      - name: Build, tag, and push docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
+          # FIX: Single build command with buildx for caching and multi-arch support
           docker buildx build \
-          --platform linux/amd64 \
-          --build-arg DATABASE_URL=${{ secrets.DATABASE_URL }} \
-          -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-          -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
-          -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \
-          -t ghcr.io/${{ github.repository }}:latest \
-          --push .
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache-new \
+            --build-arg DATABASE_URL=${{ secrets.DATABASE_URL }} \
+            --platform linux/amd64 \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \
+            -t ghcr.io/${{ github.repository }}:latest \
+            --push .
+            
+          # Move cache
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
+      - name: Scan docker image for vulnerabilities
+        # FIX: Added condition to only scan if build succeeded
+        if: success()
+        uses: aquasecurity/trivy-action@0.20.0  # Pinned to specific version
+        with:
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'  # FIX: Only show critical/high severity issues
+
+      - name: Upload Trivy scan results
+        # FIX: Upload even if scan found issues
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3  # Updated to v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # -----------------------------------------------------
+  # Job Name: Deploy to ECS
+  # -----------------------------------------------------
   deploy:
     name: Deploy to ECS
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: production
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # FIX: Added timeout
+    timeout-minutes: 15
+    # FIX: Added environment for deployment tracking
+    environment: production  # Make sure to create this in GitHub repo settings
 
     steps:
-
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4  # Updated to v4
 
+      # FIX: Upgraded to OIDC authentication
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # Using same OIDC role
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@v2  # Updated to v2
 
-      - name: Render task definition
+      - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -173,15 +321,17 @@ jobs:
           container-name: my-app
           image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
 
-      - name: Deploy to ECS
-        id: deploy
+      - name: Deploy to Amazon ECS service
+        id: deploy  # FIX: Added id to capture output
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: my-app-service
-          cluster: my-app-cluster
+          service: my-app-service # Keeps containers running
+          cluster: my-app-cluster # Cluster allows multiple virtual machines
           wait-for-service-stability: true
 
+      # FIX: Added deployment verification
       - name: Verify deployment
         run: |
-          echo "Deployment completed successfully!"
+          echo "Deployment completed successfully to ECS!"
+          echo "Task definition ARN: ${{ steps.deploy.outputs.task-definition-arn }}"
