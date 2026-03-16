@@ -142,3 +142,52 @@ Task definition
 Networking
 Security groups
 IAM roles
+
+- IAM ROLES REQIRMENTS!!!
+   {
+      "Version": "2012-10-17",
+      "Statement": [
+         {
+               "Effect": "Allow",
+               "Action": [
+                  "ecr:GetAuthorizationToken",
+                  "ecr:BatchCheckLayerAvailability",
+                  "ecr:GetDownloadUrlForLayer",
+                  "ecr:GetRepositoryPolicy",
+                  "ecr:DescribeRepositories",
+                  "ecr:ListImages",
+                  "ecr:BatchGetImage",
+                  "ecr:InitiateLayerUpload",
+                  "ecr:UploadLayerPart",
+                  "ecr:CompleteLayerUpload",
+                  "ecr:PutImage"
+               ],
+               "Resource": "*"
+         },
+         {
+               "Effect": "Allow",
+               "Action": [
+                  "ecs:DescribeServices",
+                  "ecs:DescribeTaskDefinition",
+                  "ecs:DescribeTasks",
+                  "ecs:ListTasks",
+                  "ecs:RegisterTaskDefinition",
+                  "ecs:RunTask",
+                  "ecs:StartTask",
+                  "ecs:StopTask",
+                  "ecs:UpdateService",
+                  "ecs:ListClusters",
+                  "ecs:ListServices",
+                  "ecs:ListTaskDefinitions"
+               ],
+               "Resource": "*"
+         },
+         {
+               "Effect": "Allow",
+               "Action": [
+                  "iam:PassRole"
+               ],
+               "Resource": "*"
+         }
+      ]
+   }

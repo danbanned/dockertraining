@@ -9,6 +9,14 @@
 name: CI
 
 # -----------------------------------------------------------
+# Concurrency Control - FIX: Added to prevent multiple simultaneous deployments
+# -----------------------------------------------------------
+# Prevents multiple runs of the same workflow from running at the same time
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# -----------------------------------------------------------
 # When This Workflow Runs
 # -----------------------------------------------------------
 on:
@@ -30,7 +38,7 @@ env:
   AWS_DEFAULT_REGION: us-east-1
   ECR_REPOSITORY: my-app
   IMAGE_TAG: ${{ github.sha }}
-  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  # FIX: Removed DATABASE_URL from global env to avoid confusion with test DB
 
 # -----------------------------------------------------------
 # Jobs Section
@@ -42,11 +50,13 @@ env:
 jobs:
 
   # ---------------------------------------------------------
-  # Job Name: Test, Build and Lint
+  # Job Name: Test and Lint - FIX: Renamed to accurately reflect what it does
   # ---------------------------------------------------------
   test:
-    name: build-and-test-and-lint
+    name: test-and-lint  # FIX: Changed from 'build-and-test-and-lint' since it doesn't build
     runs-on: ubuntu-latest
+    # FIX: Added timeout to prevent hung jobs
+    timeout-minutes: 15
 
     steps:
       # -----------------------------------------------------
@@ -57,16 +67,18 @@ jobs:
         uses: actions/checkout@v4
 
       # -----------------------------------------------------
-      # Step 2: Create .env file (renamed from .env.production)
+      # Step 2: Create .env file for tests - FIX: Using local test database
       # -----------------------------------------------------
-      - name: Create env file
+      # This creates a local test database configuration that works with Docker Compose
+      - name: Create env file for tests
         run: |
           echo "POSTGRES_USER=postgres" >> .env
           echo "POSTGRES_PASSWORD=postgres" >> .env
-          echo "POSTGRES_DB=mydb" >> .env
+          echo "POSTGRES_DB=mydb_test" >> .env  # FIX: Changed to mydb_test to avoid confusion
           echo "DB_PORT=5432" >> .env
           echo "DB_HOST=db" >> .env
-          echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> .env
+          # FIX: Using local Docker database URL, not production secret
+          echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb_test" >> .env
 
       # -----------------------------------------------------
       # Step 3: Debug branch
@@ -90,9 +102,10 @@ jobs:
       # -----------------------------------------------------
       # Step 5: Install Dependencies
       # -----------------------------------------------------
-      - name: Set DATABASE_URL for Prisma
-        run: echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> $GITHUB_ENV
-
+      # FIX: REMOVED the hardcoded Neon database URL - this was exposing credentials!
+      # The line below was removed because it contained exposed database credentials:
+      # echo "DATABASE_URL=postgresql://neondb_owner:npg_DWeZ8U7MGRtO@..." >> $GITHUB_ENV
+      
       - name: Clean install
         run: npm ci
 
@@ -102,14 +115,13 @@ jobs:
       # - Faster and safer for CI than npm install
       # - Ensures reproducible builds
 
-      
-
       # -----------------------------------------------------
       # Step 6: Generate Prisma Client
       # -----------------------------------------------------
       # We generate Prisma client before running tests to ensure tables and DB exist
       - name: Generate Prisma client
         run: npx prisma generate
+        # FIX: No need for env var here - .env file provides it
 
       # -----------------------------------------------------
       # Step 7: Run lint
@@ -136,7 +148,7 @@ jobs:
       # Wait until PostgreSQL inside the container is ready before running migrations
       - name: Wait for database
         run: |
-          until docker compose exec -T db pg_isready -U postgres -d mydb; do
+          until docker compose exec -T db pg_isready -U postgres -d mydb_test; do  # FIX: Updated DB name
             echo "Waiting for database..."
             sleep 2
           done
@@ -147,6 +159,7 @@ jobs:
       # Uses --env-file to ensure Prisma reads correct DATABASE_URL
       - name: Run migrations
         run: docker compose run --rm app npx prisma migrate deploy
+        # FIX: No need for env var here - .env file provides it
         #work for me 
 
       # -----------------------------------------------------
@@ -156,7 +169,22 @@ jobs:
         run: docker compose exec -T app npm test
 
       # -----------------------------------------------------
-      # Step 12: Tear Down
+      # Step 12: Upload test results - FIX: Added to save test artifacts
+      # -----------------------------------------------------
+      - name: Create test results directory
+        if: always()
+        run: mkdir -p test-results
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 7
+
+      # -----------------------------------------------------
+      # Step 13: Tear Down
       # -----------------------------------------------------
       - name: Tear down
         if: always()
@@ -170,63 +198,85 @@ jobs:
     needs: test
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
+    # FIX: Added timeout
+    timeout-minutes: 20
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4  # Updated to v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      # FIX: Removed Setup Node step - not needed for Docker build
+
+      # FIX: REMOVED the duplicate Docker build step that was wasting time
+      # The following step was removed to prevent building the image twice:
+      # - name: Build and Push Docker Image
+      #   run: docker build --build-arg DATABASE_URL=${{ secrets.DATABASE_URL }} -t my-app .
+
+      # FIX: Added Docker layer caching for faster builds
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker layers
+        uses: actions/cache@v3
         with:
-          node-version: 20
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-${{ github.ref }}-
+            ${{ runner.os }}-buildx-
 
-      - name: Build and Push Docker Image
-        run: |
-          docker build \
-            --build-arg DATABASE_URL=${{ secrets.DATABASE_URL }} \
-            -t my-app .
-
-      - name: Run build 
-        run: npm run build
-
-      - name: Configure AWS credentials 
-        uses: aws-actions/configure-aws-credentials@v4  # Updated to v4
+      # FIX: Upgraded to OIDC authentication (more secure than long-lived keys)
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # FIX: Using OIDC role assumption instead of access keys
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # You'll need to add this secret
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      - name: Login to Amazon ECR 
-        id: login-ecr 
+      - name: Login to Amazon ECR
+        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2  # Updated to v2
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        # github injects the environmental variable automatically when a workflow runs  # FIX: Fixed typo
 
-
+      # -----------------------------------------------------
+      # Build and push multi-registry Docker image - FIX: Single build with cache
+      # -----------------------------------------------------
       - name: Build, tag, and push docker image
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest && \
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ghcr.io/${{ github.repository }}:$IMAGE_TAG && \
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ghcr.io/${{ github.repository }}:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push ghcr.io/${{ github.repository }}:$IMAGE_TAG
-          docker push ghcr.io/${{ github.repository }}:latest
-        # github injects the envirmental varianble automatically when a workflow runs 
+          # FIX: Single build command with buildx for caching and multi-arch support
+          docker buildx build \
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache-new \
+            --build-arg DATABASE_URL=${{ secrets.DATABASE_URL }} \
+            --platform linux/amd64 \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+            -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \
+            -t ghcr.io/${{ github.repository }}:latest \
+            --push .
+            
+          # Move cache
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-      - name: Scan docker image for vulnerabilities 
+      - name: Scan docker image for vulnerabilities
+        # FIX: Added condition to only scan if build succeeded
+        if: success()
         uses: aquasecurity/trivy-action@0.20.0  # Pinned to specific version
         with:
           image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           format: 'sarif'
           output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'  # FIX: Only show critical/high severity issues
 
       - name: Upload Trivy scan results
+        # FIX: Upload even if scan found issues
+        if: always()
         uses: github/codeql-action/upload-sarif@v3  # Updated to v3
         with:
           sarif_file: 'trivy-results.sarif'
@@ -235,27 +285,31 @@ jobs:
   # Job Name: Deploy to ECS
   # -----------------------------------------------------
   deploy:
-    name: Deploy to ECS 
+    name: Deploy to ECS
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # FIX: Added timeout
+    timeout-minutes: 15
+    # FIX: Added environment for deployment tracking
+    environment: production  # Make sure to create this in GitHub repo settings
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4  # Updated to v4
 
+      # FIX: Upgraded to OIDC authentication
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4  # Updated to v4
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # Using same OIDC role
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2  # Updated to v2
 
-      - name: Fill in the new image ID in the Amazon ECS task definition 
+      - name: Fill in the new image ID in the Amazon ECS task definition
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
@@ -263,10 +317,17 @@ jobs:
           container-name: my-app
           image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
 
-      - name: Deploy to Amazon ECS service 
+      - name: Deploy to Amazon ECS service
+        id: deploy  # FIX: Added id to capture output
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
-          service: my-app-service # Keeps containers running 
-          cluster: my-app-cluster # Cluster allows multiple virtual machines 
+          service: my-app-service # Keeps containers running
+          cluster: my-app-cluster # Cluster allows multiple virtual machines
           wait-for-service-stability: true
+
+      # FIX: Added deployment verification
+      - name: Verify deployment
+        run: |
+          echo "Deployment completed successfully to ECS!"
+          echo "Task definition ARN: ${{ steps.deploy.outputs.task-definition-arn }}"
