@@ -173,7 +173,8 @@ jobs:
       - name: Run migrations
         env:
           NODE_OPTIONS: "--max-old-space-size=512"
-        run: docker compose run --rm --env-file .env app npx prisma migrate deploy
+          DATABASE_URL: postgresql://postgres:postgres@db:5432/mydb?schema=public
+        run: docker compose run --rm app npx prisma migrate deploy
         # FIX: No need for env var here - .env file provides it
         #work for me 
 
