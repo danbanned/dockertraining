@@ -110,7 +110,7 @@ jobs:
               exit 0
             fi
             echo "Waiting for database..."
-            sleep 2
+            sleep 2 
           done
           echo "Database failed to start ❌"
           docker compose logs db
@@ -123,7 +123,7 @@ jobs:
         run: docker compose run --rm app npx prisma migrate deploy
 
       - name: Run tests
-        run: docker compose exec -T dockertraining-app-1 npm test
+        run: docker compose exec -T app npm test
 
       - name: Create test results directory
         if: always()
