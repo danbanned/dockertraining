@@ -173,7 +173,7 @@ jobs:
       - name: Run migrations
         env:
           NODE_OPTIONS: "--max-old-space-size=512"
-        run: docker compose --env-file .env run --rm app npx prisma migrate deploy
+        run: docker compose run --rm --env-file .env app npx prisma migrate deploy
         # FIX: No need for env var here - .env file provides it
         #work for me 
 
