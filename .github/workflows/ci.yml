@@ -73,7 +73,7 @@ jobs:
         run: npm install -D prisma@latest
 
       - name: Generate Prisma client
-        run: npx prisma generate
+        run: docker compose run --rm app npx prisma generate
 
       - name: Run linter
         run: npm run lint
