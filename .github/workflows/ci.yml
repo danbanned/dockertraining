@@ -302,7 +302,8 @@ jobs:
         if: always() && hashFiles('trivy-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4  # CORRECTED: v4 with the 'v'
         with:
-          sarif_file: 'trivy-results.sarif'-----------------------------------
+          sarif_file: 'trivy-results.sarif'
+  # -----------------------------------
         # Job Name: Deploy to ECS
   # -----------------------------------------------------
   deploy:
