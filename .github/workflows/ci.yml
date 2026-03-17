@@ -76,7 +76,7 @@ jobs:
         run: docker compose run --rm app npx prisma generate
 
       - name: Run linter
-        run: docker compose run --rm appnpm run lint
+        run: docker compose run --rm app npm run lint
 
       - name: Remove old containers
         run: docker compose down -v
