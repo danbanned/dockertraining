@@ -69,6 +69,9 @@ jobs:
       - name: Clean install
         run: npm ci
 
+      - name: Install Prisma CLI
+        run: npm install -D prisma@latest
+
       - name: Generate Prisma client
         run: npx prisma generate
 
