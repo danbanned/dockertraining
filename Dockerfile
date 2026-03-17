@@ -7,17 +7,6 @@
 # This image already contains Node.js and npm installed.
 # dockerfile mlti-stage build for next.js application 
 FROM node:20-alpine AS deps 
-
-
-
-# Install dumb-init for proper signal handling, places a receptionist in formnt of your apps folodr directory 
-RUN apk add --no-cache dumb-init
-
-# so our script works make sure bash is installed in your Docker image.
-RUN apk add --no-cache bash dos2unix curl git ca-certificates && update-ca-certificates
-
-# docker compose is using wget so install it in our image 
-RUN apk add --no-cache curl wget
 # -----------------------------------------------------------
 # Working Directory
 # -----------------------------------------------------------
@@ -25,6 +14,16 @@ RUN apk add --no-cache curl wget
 # All following commands (COPY, RUN, CMD) will execute
 # relative to this directory.
 WORKDIR /app
+
+
+# Install dumb-init for proper signal handling, places a receptionist in front of your apps folder directory
+RUN apk add --no-cache dumb-init
+
+# so our script works make sure bash is installed in your Docker image.
+RUN apk add --no-cache bash dos2unix curl git ca-certificates && update-ca-certificates
+
+# docker compose is using wget so install it in our image 
+RUN apk add --no-cache curl wget
 
 
 # -----------------------------------------------------------
@@ -46,6 +45,7 @@ COPY prisma ./prisma
 # - Any other libraries your app depends on
 
 RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000
+
 # Development stage 
 FROM node:20-alpine AS builder
 
@@ -53,6 +53,10 @@ WORKDIR /app
 
 #copy dependecies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
+
+# Copy Prisma configuration FIRST (important for Prisma 7)
+COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
 
 # -----------------------------------------------------------
 # Copy Application Source Code
@@ -67,11 +71,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY public ./public
 COPY . .
 
-# Convert line endings & make script executable
-RUN dos2unix scripts/validate-logs.sh
-RUN chmod +x scripts/validate-logs.sh
+# Make scripts executable
+RUN dos2unix scripts/validate-logs.sh && chmod +x scripts/validate-logs.sh
 
-COPY .env ./
 
 
 ARG DATABASE_URL
@@ -90,7 +92,6 @@ ENV DATABASE_URL=$DATABASE_URL
 #
 # Your application uses this generated client to communicate
 # with your database (PostgreSQL, MySQL, etc.).
-ENV DATABASE_URL="postgresql://user:password@localhost:5432/db"
 RUN npx prisma generate --schema=prisma/schema.prisma
 # -----------------------------------------------------------
 # Build Application
@@ -105,30 +106,34 @@ RUN npm run build
 # production stage
 FROM node:20-alpine AS runner
 
-ENV DATABASE_URL=${DATABASE_URL}
-
 # Install bash, dumb-init, curl for health checks
 RUN apk add --no-cache dumb-init curl bash dos2unix
+
+# set working directory
+WORKDIR /app
+
+ENV DATABASE_URL=${DATABASE_URL}
+
 
 # create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
-# set working directory
-WORKDIR /app
 
 # copy built app + dependencies from builder
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+# Copy Prisma config + schema (required for migrations)
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./next.config.js
 COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 
-# Convert line endings & make scripts executable
-RUN dos2unix /app/scripts/validate-logs.sh
-RUN chmod +x /app/scripts/validate-logs.sh
+# Make scripts executable
+RUN dos2unix /app/scripts/validate-logs.sh && chmod +x /app/scripts/validate-logs.sh
+
 
 # set env variables
 ENV NODE_ENV=production \

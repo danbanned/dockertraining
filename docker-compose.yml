@@ -33,19 +33,17 @@ services: #is what holds our containers
     image: danny1026/app
     #built locally 
 
-    build: . #builds dockerfile from the current directory thats what the periods for 
-
+    build: 
+      context: .
+      args:
+        DATABASE_URL: ${DATABASE_URL} #builds dockerfile from the current directory thats what the periods for 
     env_file:
       - .env
       # connects to postgres using one of our service names which is our "db"
       # use postgresql://username=postgres:password=postgres@host=db:port=5432/database name=appdb
-      # because docker creates a private network containers talk to ecahother using service names 
-
+      # because docker creates a private network containers talk to each other using service names
     environment:
       DATABASE_URL: ${DATABASE_URL}
-
-
-
     ports:
       - "80:3000" #maps port 300 inside the container to port 300 on your host machine
       #this allows you to access the app in your browser at localhost:3000 we arae not connecting serevrs we are just exposing 
