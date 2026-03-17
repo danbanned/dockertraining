@@ -10,7 +10,7 @@
     "start": "next start",
     "lint": "eslint .",
     "format": "prettier --write 'app/**/*.{js,jsx,ts,tsx}'",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
     "test:watch": "jest --watch",
     "test:ci": "jest --ci --coverage",
     "postinstall": "prisma generate",

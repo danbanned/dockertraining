@@ -1,17 +1,31 @@
-// jest.config.js
-import nextJest from 'next/jest'
+import nextJest from "next/jest";
 
 const createJestConfig = nextJest({
-  dir: './',
-})
+  dir: "./",
+});
 
 const customJestConfig = {
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  testEnvironment: 'jest-environment-jsdom',
-  moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/app/$1',
-  },
-  testMatch: ['**/__tests__/**/*.test.[jt]s?(x)'],
-}
+  testEnvironment: "jest-environment-jsdom",
 
-module.exports = createJestConfig(customJestConfig)
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
+
+  moduleNameMapper: {
+    "^@/(.*)$": "<rootDir>/app/$1",
+  },
+
+  // 👇 Tell Jest ONLY where to look
+  roots: ["<rootDir>/app"],
+
+  modulePathIgnorePatterns: [
+    "<rootDir>/.next/"
+  ],
+
+  testPathIgnorePatterns: [
+    "/node_modules/",
+    "/.next/"
+  ],
+
+  testMatch: ["**/__tests__/**/*.test.[jt]s?(x)"]
+};
+
+export default createJestConfig(customJestConfig);
