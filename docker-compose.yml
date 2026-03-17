@@ -6,18 +6,17 @@ services: #is what holds our containers
   #service name = hostname in docker, i think our db is the service name, meaning services and container are one 
     image: postgres:15-alpine #pulls official postgres version 15 image from 
 
-
-    ports:
-      - "5432:5432"
     #docker already has prebuilt linux images that your container can use instead of the user manually installign it.
     restart: always #automatically restart the container if it crashes 
 
     env_file:
       - .env
     environment:
-      POSTGRES_USER: ${POSTGRES_USER} #database is given a username
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} #database is assigned a password 
-      POSTGRES_DB: ${POSTGRES_DB} #then we give it a name so when we are ready to start the database this is what runs it 
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: mydb #then we give it a name so when we are ready to start the database this is what runs it 
+    ports:
+    - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data #saves database files
       # to a named volume (persistent storage)
