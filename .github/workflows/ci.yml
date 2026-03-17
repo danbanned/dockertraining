@@ -193,7 +193,7 @@ jobs:
             -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \       # Tag with commit SHA
             -t ghcr.io/${{ github.repository }}:latest \           # Tag as latest
             --push \                                               # Push to registry
-            -f Dockerfile .                                       # Build context (CURRENT DIRECTORY!)
+            .                                   # Build context (CURRENT DIRECTORY!)
 
           # Move cache for next run
           rm -rf /tmp/.buildx-cache
