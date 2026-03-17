@@ -188,6 +188,7 @@ jobs:
           docker buildx build \
             --cache-from=type=local,src=/tmp/.buildx-cache \
             --cache-to=type=local,dest=/tmp/.buildx-cache-new \
+            --build-arg DATABASE_URL=${{ secrets.DATABASE_URL }} \
             --platform linux/amd64 \
             -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \
             -t ghcr.io/${{ github.repository }}:latest \
