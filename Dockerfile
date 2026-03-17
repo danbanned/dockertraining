@@ -51,6 +51,12 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+# 1. Declare the build argument
+ARG DATABASE_URL
+
+# 2. Use it, for example by setting an environment variable
+ENV DATABASE_URL=$DATABASE_URL
+
 #copy dependecies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 
@@ -76,8 +82,7 @@ RUN dos2unix scripts/validate-logs.sh && chmod +x scripts/validate-logs.sh
 
 
 
-ARG DATABASE_URL
-ENV DATABASE_URL=$DATABASE_URL
+
 
 
 # -----------------------------------------------------------

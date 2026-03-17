@@ -6,6 +6,11 @@
 # -----------------------------------------------------------
 name: CI
 
+permissions:
+  contents: read
+  packages: write  # <-- This is the key permission for GHCR
+  # ... other permissions
+
 # -----------------------------------------------------------
 # Concurrency Control - FIX: Added to prevent multiple simultaneous deployments
 # -----------------------------------------------------------
