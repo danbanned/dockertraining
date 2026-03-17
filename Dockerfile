@@ -71,6 +71,8 @@ COPY . .
 RUN dos2unix scripts/validate-logs.sh
 RUN chmod +x scripts/validate-logs.sh
 
+COPY .env ./
+
 
 ARG DATABASE_URL
 ENV DATABASE_URL=$DATABASE_URL
