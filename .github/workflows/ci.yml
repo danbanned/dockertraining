@@ -8,6 +8,10 @@
 # It describes what this workflow does.
 name: CI
 
+permissions:
+  id-token: write
+  contents: read
+
 # -----------------------------------------------------------
 # Concurrency Control - FIX: Added to prevent multiple simultaneous deployments
 # -----------------------------------------------------------
@@ -281,24 +285,25 @@ jobs:
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
       - name: Scan docker image for vulnerabilities
-        # FIX: Added condition to only scan if build succeeded
-        if: success()
-        uses: aquasecurity/trivy-action@0.20.0  # Pinned to specific version
+        id: trivy-scan
+        # FIX: Run even if build had warnings, but not if it completely failed
+        if: success() || failure()
+        uses: aquasecurity/trivy-action@0.20.0
         with:
           image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           format: 'sarif'
           output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'  # FIX: Only show critical/high severity issues
+          severity: 'CRITICAL,HIGH'
+          # Optionally set exit-code: '1' to fail the build on critical vulnerabilities
+          # exit-code: '1'
 
       - name: Upload Trivy scan results
-        # FIX: Upload even if scan found issues
-        if: always()
-        uses: github/codeql-action/upload-sarif@v3  # Updated to v3
+        # FIX: Only upload if the SARIF file was actually created
+        if: always() && hashFiles('trivy-results.sarif') != ''
+        uses: github/codeql-action/upload-sarif@v4  # CORRECTED: v4 with the 'v'
         with:
-          sarif_file: 'trivy-results.sarif'
-
-  # -----------------------------------------------------
-  # Job Name: Deploy to ECS
+          sarif_file: 'trivy-results.sarif'-----------------------------------
+        # Job Name: Deploy to ECS
   # -----------------------------------------------------
   deploy:
     name: Deploy to ECS and EC2 
