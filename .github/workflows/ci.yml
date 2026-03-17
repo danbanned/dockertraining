@@ -171,8 +171,8 @@ jobs:
       # -----------------------------------------------------
       # Uses --env-file to ensure Prisma reads correct DATABASE_URL
       - name: Run migrations
-        
-        NODE_OPTIONS: "--max-old-space-size=512"
+        env:
+          NODE_OPTIONS: "--max-old-space-size=512"
         run: docker compose --env-file .env run --rm app npx prisma migrate deploy
         # FIX: No need for env var here - .env file provides it
         #work for me 
