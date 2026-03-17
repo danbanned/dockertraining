@@ -182,7 +182,7 @@ jobs:
       # Step 11: Run Tests
       # -----------------------------------------------------
       - name: Run tests
-        run: docker compose exec -T dockertraining-app-1 npm test
+        run: docker compose exec -T app npm test
 
       # -----------------------------------------------------
       # Step 12: Upload test results - FIX: Added to save test artifacts
