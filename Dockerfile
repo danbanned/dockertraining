@@ -15,6 +15,9 @@ RUN apk add --no-cache dumb-init
 
 # so our script works make sure bash is installed in your Docker image.
 RUN apk add --no-cache bash dos2unix curl git ca-certificates && update-ca-certificates
+
+# docker compose is using wget so install it in our image 
+RUN apk add --no-cache curl wget
 # -----------------------------------------------------------
 # Working Directory
 # -----------------------------------------------------------
@@ -85,7 +88,8 @@ ENV DATABASE_URL=$DATABASE_URL
 #
 # Your application uses this generated client to communicate
 # with your database (PostgreSQL, MySQL, etc.).
-
+ENV DATABASE_URL="postgresql://user:password@localhost:5432/db"
+RUN npx prisma generate --schema=prisma/schema.prisma
 # -----------------------------------------------------------
 # Build Application
 # -----------------------------------------------------------
@@ -98,6 +102,8 @@ RUN npm run build
 
 # production stage
 FROM node:20-alpine AS runner
+
+ENV DATABASE_URL=${DATABASE_URL}
 
 # Install bash, dumb-init, curl for health checks
 RUN apk add --no-cache dumb-init curl bash dos2unix
@@ -137,4 +143,4 @@ ENTRYPOINT ["dumb-init", "--"]
 USER nextjs
 
 # start app
-CMD ["/bin/bash", "/app/scripts/validate-logs.sh"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
