@@ -186,14 +186,14 @@ jobs:
       - name: Build, tag, and push docker image
         run: |
           docker buildx build \
-            --cache-from=type=local,src=/tmp/.buildx-cache \      # Use cached layers
-            --cache-to=type=local,dest=/tmp/.buildx-cache-new \   # Save new cache
-            --build-arg DATABASE_URL=${{ secrets.DATABASE_URL }} \ # Pass DB URL for Prisma 7
-            --platform linux/amd64 \                               # Target platform
-            -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \       # Tag with commit SHA
-            -t ghcr.io/${{ github.repository }}:latest \           # Tag as latest
-            --push \                                               # Push to registry
-            .                                   # Build context (CURRENT DIRECTORY!)
+            --cache-from=type=local,src=/tmp/.buildx-cache \
+            --cache-to=type=local,dest=/tmp/.buildx-cache-new \
+            --build-arg DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+            --platform linux/amd64 \
+            -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \
+            -t ghcr.io/${{ github.repository }}:latest \
+            --push \
+            .
 
           # Move cache for next run
           rm -rf /tmp/.buildx-cache
