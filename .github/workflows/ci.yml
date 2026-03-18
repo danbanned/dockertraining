@@ -311,7 +311,7 @@ jobs:
             # Stop and remove old container (if any)
             docker stop my-app-prod || true
             docker rm my-app-prod || true
-
+ 
             # Run the new container
             docker run -d \
               --name my-app-prod \
