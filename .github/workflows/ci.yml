@@ -185,19 +185,22 @@ jobs:
 
       - name: Build, tag, and push docker image to GHCR
         run: |
+          echo "Current directory: $(pwd)"
+          echo "Files in current directory:"
+          ls -la
+          
+          # Try to build
           docker buildx build \
             --cache-from=type=local,src=/tmp/.buildx-cache \
             --cache-to=type=local,dest=/tmp/.buildx-cache-new \
-            --build-arg DATABASE_URL=${{ secrets.DATABASE_URL }} \
+            --build-arg DATABASE_URL="${{ secrets.DATABASE_URL }}" \
             --platform linux/amd64 \
             -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \
             -t ghcr.io/${{ github.repository }}:latest \
-            --push .
+            --push \
+            .
           
           # Move cache
-          rm -rf /tmp/.buildx-cache
-          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
-          
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
