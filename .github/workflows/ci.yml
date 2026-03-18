@@ -194,7 +194,8 @@ jobs:
             --platform linux/amd64 \
             -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \
             -t ghcr.io/${{ github.repository }}:latest \
-            --push .
+            --push 
+            .
           
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
