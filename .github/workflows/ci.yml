@@ -13,7 +13,8 @@ permissions:
   contents: read
   packages: write           # For GHCR
   security-events: write    # Required for CodeQL to upload SARIF results
-  actions: read     # Required for actions/upload-artifact
+  actions: read             # Required for actions/upload-artifact
+
 # -----------------------------------------------------------
 # Concurrency Control
 # -----------------------------------------------------------
@@ -37,9 +38,8 @@ env:
   AWS_DEFAULT_REGION: us-east-1
   ECR_REPOSITORY: my-app
   IMAGE_TAG: ${{ github.sha }}
-  # DATABASE_URL removed globally; test uses local .env, prod uses secrets
   EC2_INSTANCE_ID: i-0d4975574f8b5040b
-  NODE_ENV: production  # default; overridden by test job
+  NODE_ENV: production
 
 # -----------------------------------------------------------
 # Jobs Section
@@ -68,8 +68,7 @@ jobs:
           echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> .env
 
       - name: Debug branch
-        run: |
-          echo "Running on ref: ${{ github.ref }}"
+        run: echo "Running on ref: ${{ github.ref }}"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -80,25 +79,16 @@ jobs:
       - name: Clean install
         run: npm ci
 
-
       - name: Generate Prisma client
         run: docker compose run --rm app npx prisma generate
 
       - name: Run linter
         run: |
-          # Remove any manually installed incompatible eslint packages
           npm uninstall eslint-plugin-react eslint-plugin-react-hooks || true
-
-          # Install compatible ESLint and dependencies cleanly
           rm -rf node_modules package-lock.json
           npm install
-
-          # Check ESLint version
           npx eslint --version
-
-          # Run ESLint directly with Next.js recommended config
-          npx eslint . --ext .js,.jsx,.ts,.tsx --max-warnings=0 || true        run: docker compose run --rm app npm run lint
-
+          npx eslint . --ext .js,.jsx,.ts,.tsx --max-warnings=0 || true
 
       - name: Remove old containers
         run: docker compose down -v
@@ -126,7 +116,6 @@ jobs:
           docker compose logs db
           exit 1
 
-      #keep our test logs small by limiting memory for migrations
       - name: Run migrations
         env:
           NODE_OPTIONS: "--max-old-space-size=512"
@@ -178,21 +167,22 @@ jobs:
             ${{ runner.os }}-buildx-${{ github.ref }}-
             ${{ runner.os }}-buildx-
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_DEFAULT_REGION }}
-
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+      # ECR steps commented out until permissions are sorted
+      # - name: Configure AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v4
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      # 
+      # - name: Login to Amazon ECR
+      #   id: login-ecr
+      #   uses: aws-actions/amazon-ecr-login@v2
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Build, tag, and push docker image
+      - name: Build, tag, and push docker image to GHCR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
@@ -201,39 +191,32 @@ jobs:
             --cache-to=type=local,dest=/tmp/.buildx-cache-new \
             --build-arg DATABASE_URL=${{ secrets.DATABASE_URL }} \
             --platform linux/amd64 \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
             -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \
             -t ghcr.io/${{ github.repository }}:latest \
-            --push 
-            .
+            --push .
           
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-        
-
       - name: Scan docker image for vulnerabilities
         id: trivy-scan
         if: success()
-        continue-on-error: true  # Don't fail the build if scan finds issues
-        uses: aquasecurity/trivy-action@0.20.0
+        continue-on-error: true
+        uses: aquasecurity/trivy-action@0.24.0
         with:
-          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          image-ref: ghcr.io/${{ github.repository }}:$IMAGE_TAG
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
-          exit-code: '0'  # Don't fail on vulnerabilities, just report them
-
+          exit-code: '0'
 
       - name: Upload Trivy scan results to GitHub Security tab
         if: always() && steps.trivy-scan.outcome == 'success' && hashFiles('trivy-results.sarif') != ''
-        uses: github/codeql-action/upload-sarif@v4  # Updated to v4
+        uses: github/codeql-action/upload-sarif@v4
         with: 
           sarif_file: 'trivy-results.sarif'
           category: 'trivy'
 
-       # Optional: Also upload as artifact for debugging
       - name: Upload Trivy scan artifact
         if: always() && hashFiles('trivy-results.sarif') != ''
         uses: actions/upload-artifact@v4
@@ -268,7 +251,8 @@ jobs:
   #     - name: Configure AWS credentials
   #       uses: aws-actions/configure-aws-credentials@v4
   #       with:
-  #         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+  #         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  #         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
   #         aws-region: ${{ env.AWS_DEFAULT_REGION }}
   #
   #     - name: Login to Amazon ECR
@@ -367,7 +351,7 @@ jobs:
             sudo usermod -aG docker ubuntu
           "
 
-      - name: Deploy container
+      - name: Deploy container from GHCR
         run: |
           ssh ubuntu@$EC2_HOST "
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
