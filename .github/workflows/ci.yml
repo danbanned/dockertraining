@@ -311,12 +311,34 @@ jobs:
 
       - name: Launch EC2 instance
         id: launch
+        env:
+          KEY_NAME: ${{ secrets.EC2_KEY_NAME }}
         run: |
+          # Debug: Check if secret is available
+          if [ -z "$KEY_NAME" ]; then
+            echo "❌ ERROR: EC2_KEY_NAME secret is not set!"
+            echo "Please add it to GitHub Secrets: https://github.com/${{ github.repository }}/settings/secrets/actions"
+            exit 1
+          fi
+          
+          echo "✅ Using key pair: $KEY_NAME"
+          
+          # Verify key exists in AWS
+          if ! aws ec2 describe-key-pairs --key-names "$KEY_NAME" &>/dev/null; then
+            echo "❌ ERROR: Key pair '$KEY_NAME' not found in AWS!"
+            echo "Available key pairs:"
+            aws ec2 describe-key-pairs --query 'KeyPairs[*].KeyName' --output table
+            exit 1
+          fi
+          
+          echo "✅ Key pair verified in AWS"
+          
+          # Launch instance
           INSTANCE_ID=$(aws ec2 run-instances \
             --image-id ami-0b6c6ebed2801a5cb \
             --count 1 \
             --instance-type t2.micro \
-            --key-name "Ubuntu-Virtual-machine-Dannies" \
+            --key-name "$KEY_NAME" \
             --security-group-ids sg-0b971c14bd9b10e26 \
             --subnet-id subnet-0b66a114f97a51d2d \
             --query 'Instances[0].InstanceId' \
