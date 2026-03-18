@@ -1,4 +1,4 @@
-# ----------------------------------------------------------- 
+# -----------------------------------------------------------
 # Workflow Name - Multi-Registry Docker Deployment
 # The CI/CD pipeline builds a Docker image once and publishes it to both
 # Amazon ECR and GitHub Container Registry (GHCR). This allows different
@@ -10,9 +10,8 @@ permissions:
   contents: read
   packages: write  # <-- This is the key permission for GHCR
   # ... other permissions
-
 # -----------------------------------------------------------
-# Concurrency Control - FIX: Added to prevent multiple simultaneous deployments
+# Concurrency Control
 # -----------------------------------------------------------
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -38,6 +37,9 @@ env:
   EC2_INSTANCE_ID: i-0d4975574f8b5040b
   NODE_ENV: production  # default; overridden by test job
 
+# -----------------------------------------------------------
+# Jobs Section
+# -----------------------------------------------------------
 jobs:
 
   # ---------------------------------------------------------
@@ -74,8 +76,6 @@ jobs:
       - name: Clean install
         run: npm ci
 
-      - name: Install Prisma CLI
-        run: npm install -D prisma@latest
 
       - name: Generate Prisma client
         run: docker compose run --rm app npx prisma generate
@@ -94,6 +94,7 @@ jobs:
 
           # Run ESLint directly with Next.js recommended config
           npx eslint . --ext .js,.jsx,.ts,.tsx --max-warnings=0 || true        run: docker compose run --rm app npm run lint
+
 
       - name: Remove old containers
         run: docker compose down -v
@@ -121,12 +122,13 @@ jobs:
           docker compose logs db
           exit 1
 
+      #keep our test logs small by limiting memory for migrations
       - name: Run migrations
         env:
           NODE_OPTIONS: "--max-old-space-size=512"
           DATABASE_URL: postgresql://postgres:postgres@db:5432/mydb?schema=public
         run: docker compose run --rm app npx prisma migrate deploy
-
+      
       - name: Run tests
         run: docker compose exec -T app npm test
 
@@ -172,45 +174,112 @@ jobs:
             ${{ runner.os }}-buildx-${{ github.ref }}-
             ${{ runner.os }}-buildx-
 
-      # -----------------------------
-      # AWS ECR steps commented out for later use
-      # -----------------------------
-      # - name: Configure AWS credentials
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-      #     aws-region: ${{ env.AWS_DEFAULT_REGION }}
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      # - name: Login to Amazon ECR
-      #   id: login-ecr
-      #   uses: aws-actions/amazon-ecr-login@v2
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
 
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build, tag, and push docker image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           docker buildx build \
             --cache-from=type=local,src=/tmp/.buildx-cache \
             --cache-to=type=local,dest=/tmp/.buildx-cache-new \
-            --build-arg DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+            --build-arg DATABASE_URL=${{ secrets.DATABASE_URL }} \
             --platform linux/amd64 \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
             -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \
             -t ghcr.io/${{ github.repository }}:latest \
-            --push \
+            --push 
             .
-
-          # Move cache for next run
+          
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
-# ------------------------------------------------
-  # Job Name: Deploy to EC2
+      - name: Scan docker image for vulnerabilities
+        if: success()
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          image-ref: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy scan results
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+  # =========================================================
+  # ⚠️ ECS DEPLOYMENT JOB - COMMENTED OUT ⚠️
+  # =========================================================
+  # To enable ECS deployment:
+  # 1. Uncomment all lines below
+  # 2. Create a task definition file at .aws/task-definition.json
+  # 3. Create an ECS cluster named 'my-app-cluster'
+  # 4. Create an ECS service named 'my-app-service'
+  # 5. Ensure AWS_ROLE_ARN has ECS permissions
+  # =========================================================
+  
+  # deploy-ecs:
+  #   name: Deploy to ECS
+  #   needs: build
+  #   runs-on: ubuntu-latest
+  #   if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  #   timeout-minutes: 15
+  #   environment: production
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Configure AWS credentials
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+  #         aws-region: ${{ env.AWS_DEFAULT_REGION }}
+  #
+  #     - name: Login to Amazon ECR
+  #       id: login-ecr
+  #       uses: aws-actions/amazon-ecr-login@v2
+  #
+  #     - name: Fill in the new image ID in the Amazon ECS task definition
+  #       id: task-def
+  #       uses: aws-actions/amazon-ecs-render-task-definition@v1
+  #       with:
+  #         task-definition: .aws/task-definition.json
+  #         container-name: my-app
+  #         image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+  #
+  #     - name: Deploy to Amazon ECS service
+  #       id: deploy
+  #       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+  #       with:
+  #         task-definition: ${{ steps.task-def.outputs.task-definition }}
+  #         service: my-app-service
+  #         cluster: my-app-cluster
+  #         wait-for-service-stability: true
+  #
+  #     - name: Verify ECS deployment
+  #       run: |
+  #         echo "✅ Deployment completed successfully to ECS!"
+  #         echo "Task definition ARN: ${{ steps.deploy.outputs.task-definition-arn }}"
+
   # -----------------------------------------------------
+  # Job Name: Deploy to EC2 (ACTIVE)
   # -----------------------------------------------------
-# Job Name: Deploy to EC2 (with automatic instance creation)
-# -----------------------------------------------------
-  deploy:
+  deploy-ec2:
     name: Deploy to EC2
     needs: build
     runs-on: ubuntu-latest
@@ -222,13 +291,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # 1️⃣ Install AWS CLI inside the GitHub runner
-      - name: Install AWS CLI
-        run: |
-          sudo apt update
-          sudo apt install awscli -y
-
-      # 2️⃣ Configure AWS credentials in CI
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -236,7 +298,6 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-      # 3️⃣ Launch the EC2 instance automatically
       - name: Launch EC2 instance
         id: launch
         run: |
@@ -253,13 +314,11 @@ jobs:
           echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
           echo "✅ Launched EC2 instance: $INSTANCE_ID"
 
-      # 4️⃣ Wait for EC2 to start
       - name: Wait for EC2 to start
         run: |
           aws ec2 wait instance-running --instance-ids $INSTANCE_ID
           echo "✅ Instance is running"
 
-      # 5️⃣ Get the EC2 public IP automatically
       - name: Get EC2 public IP
         run: |
           PUBLIC_IP=$(aws ec2 describe-instances \
@@ -267,26 +326,16 @@ jobs:
             --query 'Reservations[0].Instances[0].PublicIpAddress' \
             --output text)
           
-          PUBLIC_DNS=$(aws ec2 describe-instances \
-            --instance-ids $INSTANCE_ID \
-            --query 'Reservations[0].Instances[0].PublicDnsName' \
-            --output text)
-
           echo "EC2_HOST=$PUBLIC_IP" >> $GITHUB_ENV
-          echo "EC2_DNS=$PUBLIC_DNS" >> $GITHUB_ENV
           echo "✅ EC2 IP: $PUBLIC_IP"
-          echo "✅ EC2 DNS: $PUBLIC_DNS"
 
-      # 6️⃣ Setup SSH connection
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
-          echo "✅ SSH configured"
 
-      # 7️⃣ Install Docker on EC2 (first time)
       - name: Install Docker on EC2
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "
@@ -295,24 +344,15 @@ jobs:
             sudo systemctl start docker
             sudo systemctl enable docker
             sudo usermod -aG docker ubuntu
-            echo '✅ Docker installed'
           "
 
-      # 8️⃣ Deploy the Docker container
       - name: Deploy container
         run: |
           ssh ubuntu@$EC2_HOST "
-            # Login to GHCR
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            # Pull the image
             docker pull ghcr.io/${{ github.repository }}:$IMAGE_TAG
-
-            # Stop and remove old container (if any)
             docker stop my-app-prod || true
             docker rm my-app-prod || true
-
-            # Run the new container
             docker run -d \
               --name my-app-prod \
               --restart unless-stopped \
@@ -321,48 +361,24 @@ jobs:
               -e DATABASE_URL=${{ secrets.DATABASE_URL }} \
               -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
               ghcr.io/${{ github.repository }}:$IMAGE_TAG
-
-            # Clean up old images
             docker image prune -a --filter 'until=24h' -f
-            
-            echo '✅ Container deployed'
           "
 
-      # 9️⃣ Verify deployment
       - name: Verify deployment
         run: |
-          # Wait a few seconds for the app to start
           sleep 10
-          
-          # Check if container is running
           ssh ubuntu@$EC2_HOST "
             if docker ps | grep -q my-app-prod; then
               echo '✅ Container is running'
               docker logs --tail 20 my-app-prod
             else
               echo '❌ Container is not running'
-              docker ps -a
-              docker logs my-app-prod
               exit 1
             fi
           "
+          curl -f http://$EC2_HOST/health || echo "⚠️ Health check not available"
+          echo "✅ Deployed at http://$EC2_HOST"
 
-          # Test HTTP endpoint
-          curl -f http://$EC2_HOST/health || echo "⚠️ Health check endpoint not available"
-          echo "✅ Deployment verified at http://$EC2_HOST"
-
-      # 🔟 Deployment complete
-      - name: Deployment complete
-        if: always()
-        run: |
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Successfully deployed to EC2 at http://$EC2_HOST"
-            echo "Instance ID: $INSTANCE_ID"
-          else
-            echo "❌ Deployment to EC2 failed"
-          fi
-
-      # Cleanup SSH key
       - name: Cleanup
         if: always()
         run: rm -f ~/.ssh/id_rsa
