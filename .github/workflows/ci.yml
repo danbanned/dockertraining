@@ -210,159 +210,159 @@ jobs:
   # -----------------------------------------------------
 # Job Name: Deploy to EC2 (with automatic instance creation)
 # -----------------------------------------------------
-deploy:
-  name: Deploy to EC2
-  needs: build
-  runs-on: ubuntu-latest
-  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  timeout-minutes: 20
-  environment: production
+  deploy:
+    name: Deploy to EC2
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 20
+    environment: production
 
-  steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    # 1️⃣ Install AWS CLI inside the GitHub runner
-    - name: Install AWS CLI
-      run: |
-        sudo apt update
-        sudo apt install awscli -y
-
-    # 2️⃣ Configure AWS credentials in CI
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_DEFAULT_REGION }}
-
-    # 3️⃣ Launch the EC2 instance automatically
-    - name: Launch EC2 instance
-      id: launch
-      run: |
-        INSTANCE_ID=$(aws ec2 run-instances \
-          --image-id ami-0b6c6ebed2801a5cb \
-          --count 1 \
-          --instance-type t2.micro \
-          --key-name "Ubuntu-Virtual-machine-Dannies" \
-          --security-group-ids sg-0b971c14bd9b10e26 \
-          --subnet-id subnet-0b66a114f97a51d2d \
-          --query 'Instances[0].InstanceId' \
-          --output text)
-
-        echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
-        echo "✅ Launched EC2 instance: $INSTANCE_ID"
-
-    # 4️⃣ Wait for EC2 to start
-    - name: Wait for EC2 to start
-      run: |
-        aws ec2 wait instance-running --instance-ids $INSTANCE_ID
-        echo "✅ Instance is running"
-
-    # 5️⃣ Get the EC2 public IP automatically
-    - name: Get EC2 public IP
-      run: |
-        PUBLIC_IP=$(aws ec2 describe-instances \
-          --instance-ids $INSTANCE_ID \
-          --query 'Reservations[0].Instances[0].PublicIpAddress' \
-          --output text)
-        
-        PUBLIC_DNS=$(aws ec2 describe-instances \
-          --instance-ids $INSTANCE_ID \
-          --query 'Reservations[0].Instances[0].PublicDnsName' \
-          --output text)
-
-        echo "EC2_HOST=$PUBLIC_IP" >> $GITHUB_ENV
-        echo "EC2_DNS=$PUBLIC_DNS" >> $GITHUB_ENV
-        echo "✅ EC2 IP: $PUBLIC_IP"
-        echo "✅ EC2 DNS: $PUBLIC_DNS"
-
-    # 6️⃣ Setup SSH connection
-    - name: Setup SSH
-      run: |
-        mkdir -p ~/.ssh
-        echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-        chmod 600 ~/.ssh/id_rsa
-        ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
-        echo "✅ SSH configured"
-
-    # 7️⃣ Install Docker on EC2 (first time)
-    - name: Install Docker on EC2
-      run: |
-        ssh -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "
+      # 1️⃣ Install AWS CLI inside the GitHub runner
+      - name: Install AWS CLI
+        run: |
           sudo apt update
-          sudo apt install docker.io -y
-          sudo systemctl start docker
-          sudo systemctl enable docker
-          sudo usermod -aG docker ubuntu
-          echo '✅ Docker installed'
-        "
+          sudo apt install awscli -y
 
-    # 8️⃣ Deploy the Docker container
-    - name: Deploy container
-      run: |
-        ssh ubuntu@$EC2_HOST "
-          # Login to GHCR
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      # 2️⃣ Configure AWS credentials in CI
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
-          # Pull the image
-          docker pull ghcr.io/${{ github.repository }}:$IMAGE_TAG
+      # 3️⃣ Launch the EC2 instance automatically
+      - name: Launch EC2 instance
+        id: launch
+        run: |
+          INSTANCE_ID=$(aws ec2 run-instances \
+            --image-id ami-0b6c6ebed2801a5cb \
+            --count 1 \
+            --instance-type t2.micro \
+            --key-name "Ubuntu-Virtual-machine-Dannies" \
+            --security-group-ids sg-0b971c14bd9b10e26 \
+            --subnet-id subnet-0b66a114f97a51d2d \
+            --query 'Instances[0].InstanceId' \
+            --output text)
 
-          # Stop and remove old container (if any)
-          docker stop my-app-prod || true
-          docker rm my-app-prod || true
+          echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
+          echo "✅ Launched EC2 instance: $INSTANCE_ID"
 
-          # Run the new container
-          docker run -d \
-            --name my-app-prod \
-            --restart unless-stopped \
-            -p 80:3000 \
-            -e NODE_ENV=${{ env.NODE_ENV }} \
-            -e DATABASE_URL=${{ secrets.DATABASE_URL }} \
-            -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
-            ghcr.io/${{ github.repository }}:$IMAGE_TAG
+      # 4️⃣ Wait for EC2 to start
+      - name: Wait for EC2 to start
+        run: |
+          aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+          echo "✅ Instance is running"
 
-          # Clean up old images
-          docker image prune -a --filter 'until=24h' -f
+      # 5️⃣ Get the EC2 public IP automatically
+      - name: Get EC2 public IP
+        run: |
+          PUBLIC_IP=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' \
+            --output text)
           
-          echo '✅ Container deployed'
-        "
+          PUBLIC_DNS=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query 'Reservations[0].Instances[0].PublicDnsName' \
+            --output text)
 
-    # 9️⃣ Verify deployment
-    - name: Verify deployment
-      run: |
-        # Wait a few seconds for the app to start
-        sleep 10
-        
-        # Check if container is running
-        ssh ubuntu@$EC2_HOST "
-          if docker ps | grep -q my-app-prod; then
-            echo '✅ Container is running'
-            docker logs --tail 20 my-app-prod
+          echo "EC2_HOST=$PUBLIC_IP" >> $GITHUB_ENV
+          echo "EC2_DNS=$PUBLIC_DNS" >> $GITHUB_ENV
+          echo "✅ EC2 IP: $PUBLIC_IP"
+          echo "✅ EC2 DNS: $PUBLIC_DNS"
+
+      # 6️⃣ Setup SSH connection
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
+          echo "✅ SSH configured"
+
+      # 7️⃣ Install Docker on EC2 (first time)
+      - name: Install Docker on EC2
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "
+            sudo apt update
+            sudo apt install docker.io -y
+            sudo systemctl start docker
+            sudo systemctl enable docker
+            sudo usermod -aG docker ubuntu
+            echo '✅ Docker installed'
+          "
+
+      # 8️⃣ Deploy the Docker container
+      - name: Deploy container
+        run: |
+          ssh ubuntu@$EC2_HOST "
+            # Login to GHCR
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            # Pull the image
+            docker pull ghcr.io/${{ github.repository }}:$IMAGE_TAG
+
+            # Stop and remove old container (if any)
+            docker stop my-app-prod || true
+            docker rm my-app-prod || true
+
+            # Run the new container
+            docker run -d \
+              --name my-app-prod \
+              --restart unless-stopped \
+              -p 80:3000 \
+              -e NODE_ENV=${{ env.NODE_ENV }} \
+              -e DATABASE_URL=${{ secrets.DATABASE_URL }} \
+              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              ghcr.io/${{ github.repository }}:$IMAGE_TAG
+
+            # Clean up old images
+            docker image prune -a --filter 'until=24h' -f
+            
+            echo '✅ Container deployed'
+          "
+
+      # 9️⃣ Verify deployment
+      - name: Verify deployment
+        run: |
+          # Wait a few seconds for the app to start
+          sleep 10
+          
+          # Check if container is running
+          ssh ubuntu@$EC2_HOST "
+            if docker ps | grep -q my-app-prod; then
+              echo '✅ Container is running'
+              docker logs --tail 20 my-app-prod
+            else
+              echo '❌ Container is not running'
+              docker ps -a
+              docker logs my-app-prod
+              exit 1
+            fi
+          "
+
+          # Test HTTP endpoint
+          curl -f http://$EC2_HOST/health || echo "⚠️ Health check endpoint not available"
+          echo "✅ Deployment verified at http://$EC2_HOST"
+
+      # 🔟 Deployment complete
+      - name: Deployment complete
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Successfully deployed to EC2 at http://$EC2_HOST"
+            echo "Instance ID: $INSTANCE_ID"
           else
-            echo '❌ Container is not running'
-            docker ps -a
-            docker logs my-app-prod
-            exit 1
+            echo "❌ Deployment to EC2 failed"
           fi
-        "
 
-        # Test HTTP endpoint
-        curl -f http://$EC2_HOST/health || echo "⚠️ Health check endpoint not available"
-        echo "✅ Deployment verified at http://$EC2_HOST"
-
-    # 🔟 Deployment complete
-    - name: Deployment complete
-      if: always()
-      run: |
-        if [ "${{ job.status }}" == "success" ]; then
-          echo "✅ Successfully deployed to EC2 at http://$EC2_HOST"
-          echo "Instance ID: $INSTANCE_ID"
-        else
-          echo "❌ Deployment to EC2 failed"
-        fi
-
-    # Cleanup SSH key
-    - name: Cleanup
-      if: always()
-      run: rm -f ~/.ssh/id_rsa
+      # Cleanup SSH key
+      - name: Cleanup
+        if: always()
+        run: rm -f ~/.ssh/id_rsa
