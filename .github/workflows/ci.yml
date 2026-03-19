@@ -30,6 +30,9 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main]
+  schedule:
+      - cron: '0 0 1 * *'  # Run monthly on the 1st
+    
 
 # -----------------------------------------------------------
 # Global Environment Variables
@@ -450,126 +453,126 @@ jobs:
       - name: Create Docker Compose files for blue-green deployment
         run: |
           ssh ubuntu@$EC2_HOST "
-            # Create blue docker-compose file
-            cat > ~/app/docker-compose.blue.yml << 'EOF_BLUE'
+          # Create blue docker-compose file
+          tee ~/app/docker-compose.blue.yml > /dev/null << 'EOF_BLUE'
 
-version: '3.8'
+          version: '3.8'
+          services:
+            app:
+              image: ghcr.io/${{ github.repository }}:$IMAGE_TAG
+              container_name: my-app-blue
+              restart: unless-stopped
+              ports:
+                - '${{ env.BLUE_PORT }}:3000'
+              environment:
+                - NODE_ENV=${{ env.NODE_ENV }}
+                - DATABASE_URL=${{ secrets.DATABASE_URL }}
+                - JWT_SECRET=${{ secrets.JWT_SECRET }}
+              networks:
+                - app-network
+              healthcheck:
+                test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+                interval: 30s
+                timeout: 10s
+                retries: 3
+                start_period: 40s
 
-services:
-  app:
-    image: ghcr.io/${{ github.repository }}:$IMAGE_TAG
-    container_name: my-app-blue
-    restart: unless-stopped
-    ports:
-      - '${{ env.BLUE_PORT }}:3000'
-    environment:
-      - NODE_ENV=${{ env.NODE_ENV }}
-      - DATABASE_URL=${{ secrets.DATABASE_URL }}
-      - JWT_SECRET=${{ secrets.JWT_SECRET }}
-    networks:
-      - app-network
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+          networks:
+            app-network:
+              driver: bridge
+          EOF_BLUE
 
-networks:
-  app-network:
-    driver: bridge
-EOF_BLUE
+          # Create green docker-compose file
+          tee ~/app/docker-compose.green.yml > /dev/null << 'EOF_GREEN'
 
-            # Create green docker-compose file
-            tee ~/app/docker-compose.green.yml > /dev/null << 'EOF_GREEN'
-version: '3.8'
+          version: '3.8'
+          services:
+            app:
+              image: ghcr.io/${{ github.repository }}:$IMAGE_TAG
+              container_name: my-app-green
+              restart: unless-stopped
+              ports:
+                - '${{ env.GREEN_PORT }}:3000'
+              environment:
+                - NODE_ENV=${{ env.NODE_ENV }}
+                - DATABASE_URL=${{ secrets.DATABASE_URL }}
+                - JWT_SECRET=${{ secrets.JWT_SECRET }}
+              networks:
+                - app-network
+              healthcheck:
+                test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+                interval: 30s
+                timeout: 10s
+                retries: 3
+                start_period: 40s
 
-services:
-  app:
-    image: ghcr.io/${{ github.repository }}:$IMAGE_TAG
-    container_name: my-app-green
-    restart: unless-stopped
-    ports:
-      - '${{ env.GREEN_PORT }}:3000'
-    environment:
-      - NODE_ENV=${{ env.NODE_ENV }}
-      - DATABASE_URL=${{ secrets.DATABASE_URL }}
-      - JWT_SECRET=${{ secrets.JWT_SECRET }}
-    networks:
-      - app-network
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+          networks:
+            app-network:
+              driver: bridge
+          EOF_GREEN
 
-networks:
-  app-network:
-    driver: bridge
-EOF_GREEN
+          # Create production docker-compose file (active environment)
+          tee ~/app/docker-compose.prod.yml > /dev/null << 'EOF_PROD'
 
-            # Create production docker-compose file (active environment)
-            tee ~/app/docker-compose.prod.yml > /dev/null << 'EOF_PROD'
-version: '3.8'
 
-services:
-  app:
-    image: ghcr.io/${{ github.repository }}:latest
-    container_name: my-app-prod
-    restart: unless-stopped
-    ports:
-      - '80:3000'
-    environment:
-      - NODE_ENV=${{ env.NODE_ENV }}
-      - DATABASE_URL=${{ secrets.DATABASE_URL }}
-      - JWT_SECRET=${{ secrets.JWT_SECRET }}
-    networks:
-      - app-network
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+          version: '3.8'
+          services:
+            app:
+              image: ghcr.io/${{ github.repository }}:latest
+              container_name: my-app-prod
+              restart: unless-stopped
+              ports:
+                - '80:3000'
+              environment:
+                - NODE_ENV=${{ env.NODE_ENV }}
+                - DATABASE_URL=${{ secrets.DATABASE_URL }}
+                - JWT_SECRET=${{ secrets.JWT_SECRET }}
+              networks:
+                - app-network
+              healthcheck:
+                test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
+                interval: 30s
+                timeout: 10s
+                retries: 3
+                start_period: 40s
 
-networks:
-  app-network:
-    driver: bridge
-EOF_PROD
+          networks:
+            app-network:
+              driver: bridge
+          EOF_PROD
 
-            # Create nginx config for blue-green routing
-            tee ~/app/nginx.conf > /dev/null << 'EOF_NGINX'
-events {
-    worker_connections 1024;
-}
+          # Create nginx config for blue-green routing
+          tee ~/app/nginx.conf > /dev/null << 'EOF_NGINX'
+          events {
+              worker_connections 1024;
+          }
 
-http {
-    upstream app_backend {
-        server localhost:${{ env.BLUE_PORT }};
-        server localhost:${{ env.GREEN_PORT }};
-    }
+          http {
+              upstream app_backend {
+                  server localhost:${{ env.BLUE_PORT }};
+                  server localhost:${{ env.GREEN_PORT }};
+              }
 
-    server {
-        listen 80;
-        
-        location / {
-            proxy_pass http://app_backend;
-            proxy_set_header Host \$host;
-            proxy_set_header X-Real-IP \$remote_addr;
-            proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto \$scheme;
-        }
-        
-        location /health {
-            access_log off;
-            return 200 'healthy\n';
-            add_header Content-Type text/plain;
-        }
-    }
-}
-EOF_NGINX
-          "
+              server {
+                  listen 80;
+                  
+                  location / {
+                      proxy_pass http://app_backend;
+                      proxy_set_header Host \$host;
+                      proxy_set_header X-Real-IP \$remote_addr;
+                      proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+                      proxy_set_header X-Forwarded-Proto \$scheme;
+                  }
+                  
+                  location /health {
+                      access_log off;
+                      return 200 'healthy\n';
+                      add_header Content-Type text/plain;
+                  }
+              }
+          }
+          EOF_NGINX
+                    "
 
       - name: Blue-Green Deployment with Docker Compose
         run: |
@@ -711,8 +714,6 @@ EOF_NGINX
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule'
     needs: []  # Run independently
-    schedule:
-      - cron: '0 0 1 * *'  # Run monthly on the 1st
     
     steps:
       - name: Configure AWS credentials
