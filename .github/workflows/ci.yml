@@ -333,6 +333,19 @@ jobs:
           
           echo "✅ Key pair verified in AWS"
           
+          # - name: Get existing EC2 instance
+          #   run: |
+          #     # Use a specific instance ID instead of creating new ones
+          #     INSTANCE_ID="i-0d4975574f8b5040b"  # Your existing instance ID
+          #     echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
+          #     
+          #     # Get its IP
+          #     PUBLIC_IP=$(aws ec2 describe-instances \
+          #       --instance-ids $INSTANCE_ID \
+          #       --query 'Reservations[0].Instances[0].PublicIpAddress' \
+          #       --output text)
+          #     echo "EC2_HOST=$PUBLIC_IP" >> $GITHUB_ENV
+
           # Launch instance
           INSTANCE_ID=$(aws ec2 run-instances \
             --image-id ami-0b6c6ebed2801a5cb \
@@ -362,12 +375,23 @@ jobs:
           echo "EC2_HOST=$PUBLIC_IP" >> $GITHUB_ENV
           echo "✅ EC2 IP: $PUBLIC_IP"
 
-      - name: Setup SSH
+      - name: Setup SSH - from asterisk to RSA formatting
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
+
+      - name: Debug - Check SSH key
+        run: |
+          ls -la ~/.ssh/
+          file ~/.ssh/id_rsa
+          # DON'T cat the file - it would expose your key!
+          echo "SSH key file exists and has correct permissions"
+
+      - name: Test SSH connection
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "echo 'SSH connection successful'"
 
       - name: Install Docker on EC2
         run: |
@@ -379,37 +403,108 @@ jobs:
             sudo usermod -aG docker ubuntu
           "
 
-      - name: Deploy container from GHCR
+      - name: Blue-Green Deployment with Migrations, Health Check & Rollback
         run: |
           ssh ubuntu@$EC2_HOST "
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Pull new version
             docker pull ghcr.io/${{ github.repository }}:$IMAGE_TAG
-            docker stop my-app-prod || true
-            docker rm my-app-prod || true
+            
+            # Run database migrations
+            echo 'Running database migrations...'
+            docker run --rm \
+              --network host \
+              -e DATABASE_URL=\"${{ secrets.DATABASE_URL }}\" \
+              ghcr.io/${{ github.repository }}:$IMAGE_TAG \
+              npx prisma migrate deploy
+            
+            # Tag current production container for rollback (if it exists)
+            if docker ps -a | grep -q my-app-prod; then
+              docker tag my-app-prod my-app-prod:rollback || true
+              CURRENT_RUNNING=true
+            else
+              CURRENT_RUNNING=false
+            fi
+            
+            # Run new container on different port (blue deployment)
+            echo 'Starting blue deployment on port 8080...'
             docker run -d \
-              --name my-app-prod \
+              --name my-app-blue \
+              -p 8080:3000 \
               --restart unless-stopped \
-              -p 80:3000 \
               -e NODE_ENV=${{ env.NODE_ENV }} \
-              -e DATABASE_URL=${{ secrets.DATABASE_URL }} \
-              -e JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              -e DATABASE_URL=\"${{ secrets.DATABASE_URL }}\" \
+              -e JWT_SECRET=\"${{ secrets.JWT_SECRET }}\" \
               ghcr.io/${{ github.repository }}:$IMAGE_TAG
+            
+            # Wait and health check new container
+            echo 'Waiting 15 seconds for container to start...'
+            sleep 15
+            
+            # Health check with retries
+            echo 'Performing health check...'
+            HEALTHY=false
+            for i in {1..30}; do
+              if curl -f http://localhost:8080/health; then
+                HEALTHY=true
+                echo '✅ Health check passed'
+                break
+              fi
+              echo \"Waiting for health check... attempt \$i/30\"
+              sleep 2
+            done
+            
+            if [ \"\$HEALTHY\" = true ]; then
+              # Switch traffic to new version
+              echo '✅ Blue deployment healthy, switching traffic...'
+              
+              # Stop and remove old production container if it exists
+              if [ \"\$CURRENT_RUNNING\" = true ]; then
+                docker stop my-app-prod || true
+                docker rm my-app-prod || true
+              fi
+              
+              # Rename blue to production
+              docker rename my-app-blue my-app-prod
+              
+              # Remove rollback tag if deployment successful
+              docker rmi my-app-prod:rollback 2>/dev/null || true
+              
+              echo '✅ Blue-green deployment successful'
+            else
+              # Rollback if health check fails
+              echo '❌ Health check failed, rolling back...'
+              docker stop my-app-blue
+              docker rm my-app-blue
+              
+              # Restore previous version if it existed
+              if [ \"\$CURRENT_RUNNING\" = true ]; then
+                echo 'Restoring previous version...'
+                docker start my-app-prod || true
+              fi
+              
+              echo '❌ Deployment failed - rolled back to previous version'
+              exit 1
+            fi
+            
+            # Clean up old images
             docker image prune -a --filter 'until=24h' -f
           "
 
-      - name: Verify deployment
+      - name: Verify final deployment
         run: |
-          sleep 10
+          sleep 5
           ssh ubuntu@$EC2_HOST "
             if docker ps | grep -q my-app-prod; then
-              echo '✅ Container is running'
+              echo '✅ Production container is running'
               docker logs --tail 20 my-app-prod
             else
-              echo '❌ Container is not running'
+              echo '❌ Production container is not running'
               exit 1
             fi
           "
-          curl -f http://$EC2_HOST/health || echo "⚠️ Health check not available"
+          curl -f http://$EC2_HOST/health && echo "✅ Health check passed at http://$EC2_HOST/health" || echo "⚠️ Health check endpoint not available"
           echo "✅ Deployed at http://$EC2_HOST"
 
       - name: Cleanup
