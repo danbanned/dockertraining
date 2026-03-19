@@ -369,6 +369,17 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
 
+      - name: Debug - Check SSH key
+        run: |
+          ls -la ~/.ssh/
+          file ~/.ssh/id_rsa
+          # DON'T cat the file - it would expose your key!
+          echo "SSH key file exists and has correct permissions"
+
+      - name: Test SSH connection
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "echo 'SSH connection successful'"
+
       - name: Install Docker on EC2
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "
