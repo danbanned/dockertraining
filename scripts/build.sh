@@ -1,5 +1,5 @@
 # build.sh
-#!/bin/bash
+#!/usr/bin/env bash
 REPO_URL=$1
 BRANCH=$2
 

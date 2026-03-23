@@ -99,18 +99,21 @@ COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# Copy optional files with conditional logic
-RUN --mount=type=bind,from=builder,source=/app,target=/builder \
-    if [ -d /builder/public ]; then cp -r /builder/public ./public; fi && \
-    if [ -f /builder/prisma.config.ts ]; then cp /builder/prisma.config.ts ./prisma.config.ts; fi && \
-    if [ -f /builder/next.config.js ]; then cp /builder/next.config.js ./next.config.js; fi && \
-    if [ -d /builder/scripts ]; then cp -r /builder/scripts ./scripts; fi
+# copy built app + dependencies from builder
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+# Copy Prisma config + schema (required for migrations)
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./next.config.js
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+
 
 # Make scripts executable
-RUN if [ -f scripts/validate-logs.sh ]; then \
-        dos2unix scripts/validate-logs.sh && \
-        chmod +x scripts/validate-logs.sh; \
-    fi
+RUN dos2unix /app/scripts/validate-logs.sh && chmod +x /app/scripts/validate-logs.sh
+
 
 # Set environment variables
 ENV NODE_ENV=production \
