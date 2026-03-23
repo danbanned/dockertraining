@@ -218,10 +218,7 @@ jobs:
       
       # Step 14: Run the actual test suite
       - name: Run tests
-        run: |
-          docker compose exec -T app npm install --include=dev
-          docker compose exec -T app npm test 
-         # -T = disable pseudo-TTY
+        run: docker compose exec -T app npm test  # -T = disable pseudo-TTY
 
       # Step 15: Create directory for test results artifacts
       - name: Create test results directory
