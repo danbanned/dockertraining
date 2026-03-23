@@ -57,7 +57,6 @@ services: #is what holds our containers
         condition: service_healthy #waits until our health check on the db passes before starting the container 
 
     
-    restart: always #automatically restart the container if it crashes 
     healthcheck:
       # The command Docker runs to determine if the container is healthy.
       # "CMD" means run the command directly (not through a shell).

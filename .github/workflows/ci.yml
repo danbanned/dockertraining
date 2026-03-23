@@ -184,7 +184,7 @@ jobs:
 
       # Step 10: Start all services in background
       - name: Start services
-        run: docker compose up -d  # -d = detached mode
+        run: docker compose up -d db  # -d = detached mode
 
       # Step 11: Debug - print Docker versions and running containers
       - name: docker check services
@@ -218,7 +218,7 @@ jobs:
       
       # Step 14: Run the actual test suite
       - name: Run tests
-        run: docker compose exec -T app npm test  # -T = disable pseudo-TTY
+        run: docker compose run --rm app npm test  # -T = disable pseudo-TTY
 
       # Step 15: Create directory for test results artifacts
       - name: Create test results directory
