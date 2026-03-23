@@ -1,69 +1,127 @@
+# ===========================================================
+# WORKFLOW NAME: Multi-Registry Docker Deployment
+# ===========================================================
+# Purpose: Builds a Docker image once and pushes to GHCR.
+#          Deploys to EC2 with zero-downtime blue-green strategy.
+# Future: Will also support ECS deployment when uncommented.
+# ===========================================================
+
 # -----------------------------------------------------------
 # Workflow Name - Multi-Registry Docker Deployment
 # The CI/CD pipeline builds a Docker image once and publishes it to both
 # Amazon ECR and GitHub Container Registry (GHCR). This allows different
 # deployment environments to pull the image from their preferred registry.
+# FUTURE Solution: Multi-Repo Deployment Pipeline
 # -----------------------------------------------------------
+
+# Defines the display name shown in GitHub Actions UI
 name: CI
 
 # -----------------------------------------------------------
 # Permissions - Added security-events for CodeQL
+# Think of it as the workflow's security badge - GitHub checks these 
+# before allowing any step that touches your repository or packages.
+# Set too low, your workflow fails. Set too high (unnecessarily), 
+# you create security risks. Your current settings match exactly 
+# what your workflow needs.
 # -----------------------------------------------------------
 permissions:
+  # Allows reading repository contents (needed for checkout)
   contents: read
+  # Allows pushing container images to GitHub Container Registry
   packages: write           # For GHCR
+  # Allows uploading security scan results to GitHub Security tab
   security-events: write    # Required for CodeQL to upload SARIF results
+  # Allows saving artifacts (test results, scan reports)
   actions: read             # Required for actions/upload-artifact
 
 # -----------------------------------------------------------
 # Concurrency Control
+# Prevents deployment chaos - ensures only one deployment runs per branch 
+# at a time, always keeping the latest commit. Critical for EC2 deployments 
+# where multiple processes can't safely modify the same server simultaneously.
 # -----------------------------------------------------------
+
 concurrency:
+  # Groups runs by workflow name + branch reference
+  # Example: "CI-main" groups all main branch runs together
   group: ${{ github.workflow }}-${{ github.ref }}
+  # When a new run starts, immediately cancel any older runs in the same group
   cancel-in-progress: true
+
 
 # -----------------------------------------------------------
 # When This Workflow Runs
+# Smart separation of concerns - test everything, but only build/deploy 
+# when it matters. Prevents wasting resources on unnecessary builds for 
+# PRs or develop branches while still validating code quality everywhere.
 # -----------------------------------------------------------
 on:
+  # Runs when code is pushed to these branches
   push:
-    branches: [main, develop]
+    branches: [main, develop]  # main = production, develop = integration
+  # Runs when pull requests target main branch (validation before merge)
   pull_request:
     branches: [main]
+  # Scheduled monthly maintenance run
   schedule:
-      - cron: '0 0 1 * *'  # Run monthly on the 1st
+      - cron: '0 0 1 * *'  # Run monthly on the 1st at midnight
     
 
 # -----------------------------------------------------------
 # Global Environment Variables
 # -----------------------------------------------------------
+# These variables are available to ALL jobs in this workflow
 env:
+  # AWS region where resources live
   AWS_DEFAULT_REGION: us-east-1
+  # Name of the ECR repository (currently unused, for future)
   ECR_REPOSITORY: my-app
+  # Unique image tag based on git commit SHA (ensures every build is unique)
   IMAGE_TAG: ${{ github.sha }}
+  # HARDCODED EC2 instance ID - WARNING: This is stale/not used in deploy job
+  # The deploy job overrides this by finding/creating its own instance
   EC2_INSTANCE_ID: i-0d4975574f8b5040b
+  # Node environment for the running application
   NODE_ENV: production
+  # Application name for identification
   APP_NAME: my-app
+  # Port for the blue deployment environment
   BLUE_PORT: 8080
+  # Port for the green deployment environment
   GREEN_PORT: 8081
+  # Whether to assign a static Elastic IP which is a never changing public ip adress that can be attached  to your ip adress 
+  # normally when you start o4 stop a ec2 instance aws gives it a new public ip, so if a user access somethign like http://54.123.45.67 
+  # it breaks after restart but with a elastic the public ip stays the same
+  # forever users can use one iurl that never changes, kinda simular to DNS but different because its uniq to a 
+  # specifiuc server  (false = use auto-assigned public IP)
+  USE_ELASTIC_IP: false  # Rob can override in repo vars
+
 
 # -----------------------------------------------------------
 # Jobs Section
 # -----------------------------------------------------------
+# Each job runs on a fresh virtual machine and executes a series of steps
 jobs:
 
   # ---------------------------------------------------------
   # Job Name: Test and Lint
   # ---------------------------------------------------------
+  # Purpose: Validate code quality and functionality before building
+  # This runs on EVERY trigger (push, PR, schedule)
   test:
-    name: test-and-lint
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    name: test-and-lint  # Display name in GitHub Actions UI
+    runs-on: ubuntu-latest  # Run on latest Ubuntu GitHub-hosted runner
+    timeout-minutes: 15  # Kill job if it exceeds 15 minutes
 
     steps:
+      # Step 1: Checkout code from repository
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4  # Official GitHub checkout action
 
+      # Step 2: Create .env file for tests with mock database credentials
+      # on push we create a env file in our repository 
+      # with the same credentials as our docker compose file so when we run our tests it can connect to the database container using those credentials
       - name: Create env file for tests
         run: |
           echo "POSTGRES_USER=postgres" >> .env
@@ -73,108 +131,140 @@ jobs:
           echo "DB_HOST=db" >> .env
           echo "DATABASE_URL=postgresql://postgres:postgres@db:5432/mydb" >> .env
 
+      # Step 3: Debug - print current branch/ref for logging using github.ref a built in github actions variable 
+      # that containes git ref(branch or tag) that triggered the workflow so we can see in the logs which branch or tag is being tested
       - name: Debug branch
         run: |
            echo "Running on ref: ${{ github.ref }}"
 
+      # Step 4: Setup Node.js with version 20 and npm caching
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
-          cache: npm
+          node-version: 20  # Node version to use
+          cache: npm  # Cache node_modules for faster runs
 
+      # Step 5: Clean install dependencies from package-lock.json
       - name: Clean install
-        run: npm ci
+        run: npm ci  # ci = clean install, respects lock file
 
+      # Step 6: Generate Prisma client (type-safe database queries)
       - name: Generate Prisma client
+      # run inside the app container to ensure it has access to the correct environment variables and dependencies for Prisma
         run: docker compose run --rm app npx prisma generate
 
+      # Step 7: Run ESLint to catch code quality issues
       - name: Run linter
         run: |
+          # Remove problematic ESLint plugins that might cause conflicts
           npm uninstall eslint-plugin-react eslint-plugin-react-hooks || true
+          # Clean reinstall to ensure clean state
           rm -rf node_modules package-lock.json
           npm install
+          # Print ESLint version for debugging
           npx eslint --version
+          # Run ESLint on all JS/TS files, max 0 warnings (fail on any warning)
           npx eslint . --ext .js,.jsx,.ts,.tsx --max-warnings=0 || true
 
+      # Step 8: Remove any existing Docker containers (clean slate)
       - name: Remove old containers
-        run: docker compose down -v
+        run: docker compose down -v  # -v removes volumes too
 
+      # Step 9: Build Docker containers defined in docker-compose.yml
       - name: Build containers
         run: docker compose build
 
+      # Step 10: Start all services in background
       - name: Start services
-        run: docker compose up -d
+        run: docker compose up -d  # -d = detached mode
 
+      # Step 11: Debug - print Docker versions and running containers
       - name: docker check services
         run: echo "docker --version && docker compose version && docker compose ps"
 
+      # Step 12: Wait for PostgreSQL to be ready (max 10 attempts)
       - name: Wait for database
         run: |
+          # Loop up to 10 times, 2 seconds between attempts
           for i in {1..10}; do
+            # Check if PostgreSQL is ready using pg_isready command
             if docker compose exec -T db pg_isready -U postgres -d mydb; then
               echo "Database is ready ✅"
-              exit 0
+              exit 0  # Success, exit loop
             fi
             echo "Waiting for database..."
             sleep 2 
           done
+          # If we exit loop, database never became ready
           echo "Database failed to start ❌"
-          docker compose logs db
-          exit 1
+          docker compose logs db  # Print database logs for debugging
+          exit 1  # Fail the step
 
+      # Step 13: Run database migrations using Prisma
       - name: Run migrations
         env:
-          NODE_OPTIONS: "--max-old-space-size=512"
+          NODE_OPTIONS: "--max-old-space-size=512"  # Limit memory usage
           DATABASE_URL: postgresql://postgres:postgres@db:5432/mydb?schema=public
+        #run prisma migrate directly inside the app container to ensure it has access to the correct environment variables and dependencies for Prisma, we use the same DATABASE_URL as our app container so it can connect to the database container and run the migrations against it, this ensures our database schema is up to date before we run our tests which depend on the database structure being correct
         run: docker compose run --rm app npx prisma migrate deploy
       
+      # Step 14: Run the actual test suite
       - name: Run tests
-        run: docker compose exec -T app npm test
+        run: docker compose exec -T app npm test  # -T = disable pseudo-TTY
 
+      # Step 15: Create directory for test results artifacts
       - name: Create test results directory
-        if: always()
+        if: always()  # Run even if previous steps failed
         run: mkdir -p test-results
 
+      # Step 16: Upload test results as artifacts for later download
       - name: Upload test results
-        if: always()
+        if: always()  # Run even if previous steps failed
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
-          path: test-results/
-          retention-days: 7
+          name: test-results  # Artifact name
+          path: test-results/  # Directory to upload
+          retention-days: 7  # Delete after 7 days
 
+      # Step 17: Clean up - stop and remove all containers
       - name: Tear down
-        if: always()
-        run: docker compose down -v
+        if: always()  # Run even if previous steps failed
+        run: docker compose down -v  # Remove containers and volumes
 
   # -----------------------------------------------------
   # Job Name: Build Application & Push Docker Image
   # -----------------------------------------------------
+  # Purpose: Build Docker image once and push to container registry
+  # Only runs on pushes to main AFTER tests pass
   build:
     name: Build app
-    needs: test
+    needs: test  # Wait for test job to complete successfully
     runs-on: ubuntu-latest
+    # ONLY run on pushes to main (not on PRs or develop)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    timeout-minutes: 20
+    timeout-minutes: 20  # Give builds extra time
 
     steps:
+      # Step 1: Checkout the code
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Step 2: Set up Docker Buildx (for multi-platform builds)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Step 3: Cache Docker layers to speed up subsequent builds
       - name: Cache Docker layers
         uses: actions/cache@v3
         with:
-          path: /tmp/.buildx-cache
+          path: /tmp/.buildx-cache  # Where cache is stored
           key: ${{ runner.os }}-buildx-${{ github.ref }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-${{ github.ref }}-
             ${{ runner.os }}-buildx-
 
       # ECR steps commented out until permissions are sorted
+      # Future: Will push to Amazon ECR as well
       # - name: Configure AWS credentials
       #   uses: aws-actions/configure-aws-credentials@v4
       #   with:
@@ -186,49 +276,61 @@ jobs:
       #   id: login-ecr
       #   uses: aws-actions/amazon-ecr-login@v2
 
+      # Step 4: Login to GitHub Container Registry (GHCR)
       - name: Login to GHCR
         run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        #github.actor is the username or bot name who evr triggered the workflow or wherever activite on the workflow is coming from 
+        #this creates a password for the github token and then we use that to login to the container registry so we can push our docker image there in the next step
 
+      # Step 5: Build, tag, and push Docker image to GHCR
       - name: Build, tag, and push docker image to GHCR
         run: |
+          # Debug: show current directory contents
           echo "Current directory: $(pwd)"
           echo "Files in current directory:"
           ls -la
           
-          # Try to build
+          # Build the Docker image using Buildx with caching, platform specification and 2 tags
+          # (one with the commit SHA and one with "latest" for easy reference)
+          # REPO_URL and BRANCH are passed as build args so Docker can clone the code directly
           docker buildx build \
             --cache-from=type=local,src=/tmp/.buildx-cache \
             --cache-to=type=local,dest=/tmp/.buildx-cache-new \
+            --build-arg REPO_URL="https://github.com/${{ github.repository }}.git" \
+            --build-arg BRANCH="${{ github.ref_name }}" \
             --build-arg DATABASE_URL="${{ secrets.DATABASE_URL }}" \
             --platform linux/amd64 \
             -t ghcr.io/${{ github.repository }}:$IMAGE_TAG \
             -t ghcr.io/${{ github.repository }}:latest \
             --push \
             .
-          
-          # Move cache
+    
+          # Move cache to new location for next build
           rm -rf /tmp/.buildx-cache
           mv /tmp/.buildx-cache-new /tmp/.buildx-cache
 
+      # Step 6: Scan Docker image for vulnerabilities using Trivy
       - name: Scan docker image for vulnerabilities
-        id: trivy-scan
-        if: success()
-        continue-on-error: true
-        uses: aquasecurity/trivy-action@0.24.0
+        id: trivy-scan  # ID allows referencing this step later
+        if: success()  # Only run if build succeeded
+        continue-on-error: true  # Don't fail workflow if scan finds issues
+        uses: aquasecurity/trivy-action@master  # Latest version
         with:
-          image-ref: ghcr.io/${{ github.repository }}:$IMAGE_TAG
-          format: 'sarif'
-          output: 'trivy-results.sarif'
-          severity: 'CRITICAL,HIGH'
-          exit-code: '0'
+          image-ref: ghcr.io/${{ github.repository }}:$IMAGE_TAG  # Image to scan image-tref specify the specific docker image we just built and pushed to GHCR
+          format: 'sarif'  # SARIF = GitHub Security format
+          output: 'trivy-results.sarif'  # Output file name where the results get written to
+          severity: 'CRITICAL,HIGH'  # Only report critical and high severity
+          exit-code: '0'  # Don't exit with error (we still want to see results) that trivy scanned for 
 
+      # Step 7: Upload scan results to GitHub Security tab
       - name: Upload Trivy scan results to GitHub Security tab
         if: always() && steps.trivy-scan.outcome == 'success' && hashFiles('trivy-results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v4
         with: 
           sarif_file: 'trivy-results.sarif'
-          category: 'trivy'
+          category: 'trivy'  # label Categorize as trivy scan
 
+      # Step 8: Upload scan results as artifact for download
       - name: Upload Trivy scan artifact
         if: always() && hashFiles('trivy-results.sarif') != ''
         uses: actions/upload-artifact@v4
@@ -240,6 +342,7 @@ jobs:
   # =========================================================
   # ⚠️ ECS DEPLOYMENT JOB - COMMENTED OUT ⚠️
   # =========================================================
+  # Future: When uncommented, this will deploy to Amazon ECS
   # To enable ECS deployment:
   # 1. Uncomment all lines below
   # 2. Create a task definition file at .aws/task-definition.json
@@ -296,18 +399,23 @@ jobs:
   # -----------------------------------------------------
   # Job Name: Deploy to EC2 (ACTIVE) - Using Docker Compose with Blue-Green Deployment
   # -----------------------------------------------------
+  # Purpose: Deploy Docker container to EC2 with zero-downtime blue-green strategy
+  # Only runs after build completes successfully on main branch pushes
   deploy-ec2:
     name: Deploy to EC2
-    needs: build
+    needs: build  # Wait for build job to complete
     runs-on: ubuntu-latest
+    # ONLY run on pushes to main (production deployments)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     timeout-minutes: 20
-    environment: production
+    environment: production  # Requires approval if environment rules are set
 
     steps:
+      # Step 1: Checkout code (needed for any local files)
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # Step 2: Configure AWS CLI with credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -315,10 +423,11 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
 
+      # Step 3: Find existing EC2 instance or create a new one
       - name: Get or create EC2 instance
-        id: ensure-instance
+        id: ensure-instance  # ID for referencing outputs
         env:
-          KEY_NAME: ${{ secrets.EC2_KEY_NAME }}
+          KEY_NAME: ${{ secrets.EC2_KEY_NAME }}  # SSH key pair name
         run: |
           # Debug: Check if secret is available
           if [ -z "$KEY_NAME" ]; then
@@ -327,16 +436,17 @@ jobs:
             exit 1
           fi
           
-          # Try to find existing instance by tag
+          # Try to find existing instance by tag "Name=my-app-production"
           INSTANCE_ID=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=my-app-production" "Name=instance-state-name,Values=running,stopped" \
             --query 'Reservations[0].Instances[0].InstanceId' \
             --output text)
           
+          # If no instance found, create a new one
           if [ "$INSTANCE_ID" = "None" ] || [ -z "$INSTANCE_ID" ]; then
             echo "No existing instance found. Creating new one..."
             
-            # Verify key exists in AWS
+            # Verify the key pair exists in AWS
             if ! aws ec2 describe-key-pairs --key-names "$KEY_NAME" &>/dev/null; then
               echo "❌ ERROR: Key pair '$KEY_NAME' not found in AWS!"
               echo "Available key pairs:"
@@ -344,30 +454,30 @@ jobs:
               exit 1
             fi 
             
-            # Launch new instance with proper tags
+            # Launch new EC2 instance with provided AMI, security group, subnet
             INSTANCE_ID=$(aws ec2 run-instances \
-              --image-id ami-0b6c6ebed2801a5cb \
-              --count 1 \
-              --instance-type t2.micro \
-              --key-name "$KEY_NAME" \
-              --security-group-ids sg-0b971c14bd9b10e26 \
-              --subnet-id subnet-0b66a114f97a51d2d \
+              --image-id ami-0b6c6ebed2801a5cb \  # AMI provided by manager
+              --count 1 \  # Single instance
+              --instance-type t2.micro \  # Free tier eligible
+              --key-name "$KEY_NAME" \  # SSH key for access
+              --security-group-ids sg-0b971c14bd9b10e26 \  # Security group from manager
+              --subnet-id subnet-0b66a114f97a51d2d \  # Subnet from manager
               --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=my-app-production},{Key=Environment,Value=production},{Key=CreatedBy,Value=github-actions},{Key=Project,Value=my-app}]' \
               --query 'Instances[0].InstanceId' \
               --output text)
             
             echo "✅ Created new instance: $INSTANCE_ID"
             
-            # Wait for instance to be ready
+            # Wait for instance to reach running state
             aws ec2 wait instance-running --instance-ids $INSTANCE_ID
             
-            # Add a small delay for SSH to be ready
+            # Wait extra 10 seconds for SSH to be ready
             sleep 10
           else
             echo "✅ Found existing instance: $INSTANCE_ID"
           fi
           
-          # Ensure instance is running
+          # Ensure instance is running (start if stopped)
           STATE=$(aws ec2 describe-instances \
             --instance-ids $INSTANCE_ID \
             --query 'Reservations[0].Instances[0].State.Name' \
@@ -380,60 +490,73 @@ jobs:
             sleep 10  # Wait for SSH
           fi
           
+          # Save instance ID to GitHub environment for later steps
           echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
 
+      # Step 4: Get EC2 instance public IP address
       - name: Get EC2 public IP
         run: |
+          # Query the public IP of the instance
           PUBLIC_IP=$(aws ec2 describe-instances \
             --instance-ids $INSTANCE_ID \
             --query 'Reservations[0].Instances[0].PublicIpAddress' \
             --output text)
           
-          # If no public IP, allocate and associate one
-          if [ "$PUBLIC_IP" = "None" ] || [ -z "$PUBLIC_IP" ]; then
+          # Only allocate Elastic IP if USE_ELASTIC_IP is true AND no public IP exists
+          if [ "${{ env.USE_ELASTIC_IP }}" = "true" ] && ( [ "$PUBLIC_IP" = "None" ] || [ -z "$PUBLIC_IP" ] ); then
             echo "No public IP found. Allocating Elastic IP..."
             
-            # Allocate Elastic IP
+            # Allocate a new Elastic IP
             ALLOC_ID=$(aws ec2 allocate-address --domain vpc --query 'AllocationId' --output text)
             
-            # Associate with instance
+            # Associate Elastic IP with instance
             aws ec2 associate-address --instance-id $INSTANCE_ID --allocation-id $ALLOC_ID
             
-            # Get the new IP
+            # Get the newly allocated IP
             PUBLIC_IP=$(aws ec2 describe-addresses --allocation-ids $ALLOC_ID --query 'Addresses[0].PublicIp' --output text)
             echo "✅ Allocated Elastic IP: $PUBLIC_IP (this IP won't change)"
           fi
           
+          # Save IP to GitHub environment for later steps
           echo "EC2_HOST=$PUBLIC_IP" >> $GITHUB_ENV
           echo "✅ EC2 IP: $PUBLIC_IP"
 
+      # Step 5: Set up SSH private key for connecting to EC2
       - name: Setup SSH
         run: |
+          # Create .ssh directory with correct permissions
           mkdir -p ~/.ssh
+          # Write private key from secret
           echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          # Set restrictive permissions (required for SSH)
           chmod 600 ~/.ssh/id_rsa
+          # Add EC2 host to known_hosts to avoid host key prompt
           ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
 
+      # Step 6: Debug - verify SSH key is properly set up
       - name: Debug - Check SSH key
         run: |
-          ls -la ~/.ssh/
-          file ~/.ssh/id_rsa
+          ls -la ~/.ssh/  # List .ssh directory contents
+          file ~/.ssh/id_rsa  # Verify file type
           echo "SSH key file exists and has correct permissions"
 
+      # Step 7: Test SSH connection to EC2 instance
       - name: Test SSH connection
         run: |
+          # Attempt connection and echo success message
           ssh -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "echo 'SSH connection successful'"
 
+      # Step 8: Install Docker and Docker Compose on the EC2 instance
       - name: Install Docker and Docker Compose on EC2
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "
             # Install Docker if not present
             if ! command -v docker &> /dev/null; then
-              sudo apt update
-              sudo apt install docker.io -y
-              sudo systemctl start docker
-              sudo systemctl enable docker
-              sudo usermod -aG docker ubuntu
+              sudo apt update  # Update package list
+              sudo apt install docker.io -y  # Install Docker
+              sudo systemctl start docker  # Start Docker service
+              sudo systemctl enable docker  # Auto-start on boot
+              sudo usermod -aG docker ubuntu  # Add ubuntu user to docker group
             else
               echo 'Docker already installed'
             fi
@@ -441,19 +564,20 @@ jobs:
             # Install Docker Compose if not present
             if ! command -v docker-compose &> /dev/null; then
               sudo curl -L 'https://github.com/docker/compose/releases/download/v2.23.0/docker-compose-$(uname -s)-$(uname -m)' -o /usr/local/bin/docker-compose
-              sudo chmod +x /usr/local/bin/docker-compose
+              sudo chmod +x /usr/local/bin/docker-compose  # Make executable
             else
               echo 'Docker Compose already installed'
             fi
             
-            # Create app directory
+            # Create app directory for deployment files
             mkdir -p ~/app
           "
 
+      # Step 9: Create Docker Compose files for blue-green deployment
       - name: Create Docker Compose files for blue-green deployment
         run: |
           ssh ubuntu@$EC2_HOST "
-          # Create blue docker-compose file
+          # Create blue docker-compose file (runs on port 8080)
           tee ~/app/docker-compose.blue.yml > /dev/null << 'EOF_BLUE'
 
           version: '3.8'
@@ -482,7 +606,7 @@ jobs:
               driver: bridge
           EOF_BLUE
 
-          # Create green docker-compose file
+          # Create green docker-compose file (runs on port 8081)
           tee ~/app/docker-compose.green.yml > /dev/null << 'EOF_GREEN'
 
           version: '3.8'
@@ -511,7 +635,7 @@ jobs:
               driver: bridge
           EOF_GREEN
 
-          # Create production docker-compose file (active environment)
+          # Create production docker-compose file (active environment on port 80)
           tee ~/app/docker-compose.prod.yml > /dev/null << 'EOF_PROD'
 
 
@@ -541,7 +665,7 @@ jobs:
               driver: bridge
           EOF_PROD
 
-          # Create nginx config for blue-green routing
+          # Create nginx config for blue-green routing (load balancer)
           tee ~/app/nginx.conf > /dev/null << 'EOF_NGINX'
           events {
               worker_connections 1024;
@@ -574,10 +698,11 @@ jobs:
           EOF_NGINX
                     "
 
+      # Step 10: Execute blue-green deployment
       - name: Blue-Green Deployment with Docker Compose
         run: |
           ssh ubuntu@$EC2_HOST "
-            set -e
+            set -e  # Exit immediately if any command fails
             
             echo '🔑 Logging into GHCR...'
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -601,7 +726,7 @@ jobs:
             
             echo \"🔄 Current active environment: \$ACTIVE\"
             
-            # Set new environment (opposite of active)
+            # Set new environment (OPPOSITE of active)
             if [ \"\$ACTIVE\" = \"blue\" ]; then
               NEW_ENV=\"green\"
               NEW_PORT=${{ env.GREEN_PORT }}
@@ -674,13 +799,14 @@ jobs:
               exit 1
             fi
             
-            # Clean up old images
+            # Clean up old unused Docker images
             docker image prune -a --filter 'until=24h' -f
           "
 
+      # Step 11: Verify final deployment is working
       - name: Verify final deployment
         run: |
-          sleep 5
+          sleep 5  # Brief wait for nginx to catch up
           ssh ubuntu@$EC2_HOST "
             echo '📊 Checking running containers:'
             docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
@@ -691,7 +817,7 @@ jobs:
               echo \"✅ Active environment: \$ACTIVE\"
             fi
             
-            # Verify production container is accessible
+            # Verify production endpoint is accessible
             if curl -f http://localhost/health; then
               echo '✅ Production endpoint is healthy'
             else
@@ -699,23 +825,29 @@ jobs:
             fi
           "
           
+          # Test from outside the instance
           curl -f http://$EC2_HOST/health && echo "✅ Health check passed at http://$EC2_HOST/health" || echo "⚠️ Health check endpoint not available"
           echo "✅ Deployed at http://$EC2_HOST"
 
+      # Step 12: Clean up SSH key from runner (security)
       - name: Cleanup
-        if: always()
+        if: always()  # Run even if deployment failed
         run: rm -f ~/.ssh/id_rsa
 
   # -----------------------------------------------------
   # Job Name: Cleanup orphaned instances (Monthly)
   # -----------------------------------------------------
+  # Purpose: Identify and report EC2 instances that don't have proper tags
+  # Runs monthly on schedule, independent of other jobs
   cleanup-orphaned:
     name: Cleanup orphaned instances
     runs-on: ubuntu-latest
+    # ONLY runs on scheduled triggers (monthly)
     if: github.event_name == 'schedule'
-    needs: []  # Run independently
+    needs: []  # Run independently, no dependencies
     
     steps:
+      # Step 1: Configure AWS credentials
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -723,11 +855,12 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
       
+      # Step 2: Find and list orphaned instances
       - name: Find and list old instances without proper tags
         run: |
           echo "Looking for instances older than 7 days without proper tags..."
           
-          # Find instances older than 7 days without the production tag
+          # Find instances without the required Name tag 'my-app-production'
           OLD_INSTANCES=$(aws ec2 describe-instances \
             --filters "Name=instance-state-name,Values=running,stopped" \
             --query 'Reservations[].Instances[?!(Tags[?Key==`Name`&&Value==`my-app-production`])].[InstanceId,LaunchTime,Tags[?Key==`Name`].Value|[0]]' \

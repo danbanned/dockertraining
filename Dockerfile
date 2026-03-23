@@ -7,12 +7,26 @@
 # This image already contains Node.js and npm installed.
 # dockerfile mlti-stage build for next.js application 
 FROM node:20-alpine AS deps 
+
+
+
+# Install git
+RUN apk add --no-cache git
+
+# Build arguments for repository
+ARG REPO_URL
+ARG BRANCH=main
+ARG DATABASE_URL
+
+
+
 # -----------------------------------------------------------
 # Working Directory
 # -----------------------------------------------------------
 # Sets the working directory inside the container to /app.
 # All following commands (COPY, RUN, CMD) will execute
 # relative to this directory.
+
 WORKDIR /app
 
 
@@ -48,6 +62,9 @@ RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000
 
 # Development stage 
 FROM node:20-alpine AS builder
+
+# Clone the repository at build time
+RUN git clone --depth 1 --branch $BRANCH $REPO_URL /app
 
 WORKDIR /app
 
@@ -148,7 +165,7 @@ ENV NODE_ENV=production \
 # expose port
 EXPOSE 3000
 
-# use dumb-init as init process
+# use dumb-init as init process its like our receptioness 
 ENTRYPOINT ["dumb-init", "--"]
 
 # switch to non-root user
