@@ -37,12 +37,14 @@ ARG REPO_URL
 ARG BRANCH
 ARG DATABASE_URL
 
-# Install git, bash, and other required tools
-RUN apk add --no-cache git bash curl
+# Install git for cloning
+RUN apk add --no-cache git
 
-# Debug - show what we're cloning
-RUN echo "BUILDER stage - Cloning from: $REPO_URL"
-RUN echo "BUILDER stage - Branch: $BRANCH"
+# DEBUG: Print the values (this will show in build logs)
+RUN echo "========== DEBUG =========="
+RUN echo "REPO_URL: $REPO_URL"
+RUN echo "BRANCH: $BRANCH"
+RUN echo "==========================="
 
 # Clone the repository
 RUN git clone --depth 1 --branch $BRANCH $REPO_URL /app
@@ -64,7 +66,6 @@ COPY next.config.js ./next.config.js
 
 # Make scripts executable
 RUN if [ -f scripts/validate-logs.sh ]; then \
-        dos2unix scripts/validate-logs.sh && \
         chmod +x scripts/validate-logs.sh; \
     fi
 

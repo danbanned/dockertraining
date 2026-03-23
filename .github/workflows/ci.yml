@@ -172,7 +172,15 @@ jobs:
 
       # Step 9: Build Docker containers defined in docker-compose.yml
       - name: Build containers
-        run: docker compose build
+        env:
+          REPO_URL: "https://github.com/${{ github.repository }}.git"
+          BRANCH: "${{ github.ref_name }}"
+          DATABASE_URL: ${DATABASE_URL}
+        run: |
+         echo "REPO_URL=$REPO_URL"
+         echo "BRANCH=$BRANCH"
+         echo "DATABASE_URL=$DATABASE_URL"
+         docker compose build
 
       # Step 10: Start all services in background
       - name: Start services
