@@ -16,10 +16,9 @@ RUN echo "DEPS stage - Building from: $REPO_URL, branch: $BRANCH"
 
 WORKDIR /app
 
-# Install additional tools and package managers
+# Install additional tools and (no package managers needed here)
 RUN apk add --no-cache dumb-init bash dos2unix curl ca-certificates wget && \
-    update-ca-certificates && \
-    npm install -g pnpm yarn
+    update-ca-certificates
 
 # This stage just installs tools - dependencies will be installed in builder
 # after cloning the actual repository
@@ -34,9 +33,8 @@ ARG REPO_URL
 ARG BRANCH
 ARG DATABASE_URL
 
-# Install git, bash, and package managers
-RUN apk add --no-cache git bash curl && \
-    npm install -g pnpm yarn
+# Install git, bash, curl (pnpm and yarn are already in the image)
+RUN apk add --no-cache git bash curl 
 
 # Debug
 RUN echo "========== DEBUG =========="
@@ -98,9 +96,8 @@ RUN if [ -f scripts/detect-and-build.sh ]; then \
 # -----------------------------------------------------------
 FROM node:20-alpine AS runner
 
-# Install runtime dependencies and package managers
-RUN apk add --no-cache dumb-init curl bash dos2unix && \
-    npm install -g pnpm yarn
+# Install runtime dependencies (pnpm and yarn are already in the image)
+RUN apk add --no-cache dumb-init curl bash dos2unix 
 
 # Redeclare ARG for this stage
 ARG DATABASE_URL
