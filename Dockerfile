@@ -16,16 +16,12 @@ RUN echo "DEPS stage - Building from: $REPO_URL, branch: $BRANCH"
 
 WORKDIR /app
 
-# Install additional tools and (no package managers needed here)
+# Install additional tools
 RUN apk add --no-cache dumb-init bash dos2unix curl ca-certificates wget && \
     update-ca-certificates
 
-# This stage just installs tools - dependencies will be installed in builder
-# after cloning the actual repository
-
-# Install ALL dependencies (including devDependencies)
-RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000 --include=dev
-
+# ❌ REMOVE THIS - no package.json here yet
+# RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000 --include=dev
 
 # -----------------------------------------------------------
 # Builder Stage - Clone and Build (Universal)
@@ -38,7 +34,7 @@ ARG BRANCH
 ARG DATABASE_URL
 
 # Install git, bash, curl (pnpm and yarn are already in the image)
-RUN apk add --no-cache git bash curl 
+RUN apk add --no-cache git bash curl
 
 # Debug
 RUN echo "========== DEBUG =========="
@@ -54,14 +50,15 @@ WORKDIR /app
 # Set environment variable for database
 ENV DATABASE_URL=$DATABASE_URL
 
+# Install ONLY production dependencies (faster, smaller)
+RUN npm ci --omit=dev
+
 # Make the detection script executable (if it exists in the cloned repo)
-# If not, we'll use a fallback
 RUN if [ -f scripts/detect-and-build.sh ]; then \
         chmod +x scripts/detect-and-build.sh; \
     fi
 
 # Run the universal build script
-# If the script exists in the repo, use it; otherwise use inline detection
 RUN if [ -f scripts/detect-and-build.sh ]; then \
         echo "📜 Using detect-and-build.sh from repository"; \
         ./scripts/detect-and-build.sh; \
@@ -69,18 +66,21 @@ RUN if [ -f scripts/detect-and-build.sh ]; then \
         echo "📜 No detect-and-build.sh found, using inline detection"; \
         echo "🔍 Detecting project type..."; \
         \
+        # Check package manager
         if [ -f "yarn.lock" ]; then \
-            yarn install --frozen-lockfile; \
+            yarn install --frozen-lockfile --production; \
         elif [ -f "pnpm-lock.yaml" ]; then \
-            pnpm install --frozen-lockfile; \
+            pnpm install --frozen-lockfile --prod; \
         else \
-            npm ci --include=dev; \
+            npm ci --omit=dev; \
         fi; \
         \
+        # Generate Prisma client if schema exists
         if [ -f "prisma/schema.prisma" ]; then \
             npx prisma generate 2>/dev/null || true; \
         fi; \
         \
+        # Build based on framework
         if [ -f "next.config.js" ] || [ -f "next.config.ts" ]; then \
             echo "🏗️ Building Next.js app..."; \
             npm run build; \
@@ -96,12 +96,38 @@ RUN if [ -f scripts/detect-and-build.sh ]; then \
     fi
 
 # -----------------------------------------------------------
+# Test Stage - Includes Dev Dependencies
+# -----------------------------------------------------------
+FROM node:20-alpine AS test
+
+ARG REPO_URL
+ARG BRANCH
+ARG DATABASE_URL
+
+RUN apk add --no-cache git bash curl
+
+RUN git clone --depth 1 --branch $BRANCH $REPO_URL /app
+
+WORKDIR /app
+
+ENV DATABASE_URL=$DATABASE_URL
+
+# Install ALL dependencies (including dev) for testing
+RUN npm ci --include=dev
+
+# Generate Prisma client
+RUN npx prisma generate --schema=prisma/schema.prisma 2>/dev/null || true
+
+# Tests will run in this stage
+CMD ["npm", "test"]
+
+# -----------------------------------------------------------
 # Production Stage - Runner (Universal)
 # -----------------------------------------------------------
 FROM node:20-alpine AS runner
 
-# Install runtime dependencies (pnpm and yarn are already in the image)
-RUN apk add --no-cache dumb-init curl bash dos2unix 
+# Install runtime dependencies
+RUN apk add --no-cache dumb-init curl bash dos2unix
 
 # Redeclare ARG for this stage
 ARG DATABASE_URL
@@ -137,7 +163,7 @@ ENTRYPOINT ["dumb-init", "--"]
 # Switch to non-root user
 USER nextjs
 
-# Universal start command - detects and starts the app
+# Universal start command
 CMD ["sh", "-c", "\
     if [ -f scripts/detect-and-build.sh ]; then \
         echo '📜 Starting with detect-and-build.sh...'; \
