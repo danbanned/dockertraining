@@ -24,8 +24,8 @@ RUN apk add --no-cache dumb-init bash dos2unix curl ca-certificates wget && \
 COPY package.json package-lock.json ./
 COPY prisma ./prisma
 
-# Install dependencies
-RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000
+# Install ALL dependencies (including devDependencies)
+RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000 --include=dev
 
 # -----------------------------------------------------------
 # Builder Stage - Clone and Build
@@ -56,6 +56,12 @@ ENV DATABASE_URL=$DATABASE_URL
 
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
+
+# After copying node_modules, check if vite exists
+RUN ls -la node_modules/.bin/ | grep vite || echo "vite NOT found!"
+RUN npm list vite || echo "vite not in dependency tree"
+
+
 
 # Copy configuration files
 COPY prisma ./prisma
@@ -93,11 +99,7 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
-# Copy built application from builder (use conditional COPY via RUN)
-COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+
 
 # copy built app + dependencies from builder
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
