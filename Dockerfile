@@ -23,6 +23,10 @@ RUN apk add --no-cache dumb-init bash dos2unix curl ca-certificates wget && \
 # This stage just installs tools - dependencies will be installed in builder
 # after cloning the actual repository
 
+# Install ALL dependencies (including devDependencies)
+RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000 --include=dev
+
+
 # -----------------------------------------------------------
 # Builder Stage - Clone and Build (Universal)
 # -----------------------------------------------------------
