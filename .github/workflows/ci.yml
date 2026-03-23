@@ -175,7 +175,7 @@ jobs:
         env:
           REPO_URL: "https://github.com/${{ github.repository }}.git"
           BRANCH: "${{ github.ref_name }}"
-          DATABASE_URL: ${DATABASE_URL}
+          DATABASE_URL: "${{ secrets.DATABASE_URL }}"  # ✅ Use secrets 
         run: |
          echo "REPO_URL=$REPO_URL"
          echo "BRANCH=$BRANCH"
