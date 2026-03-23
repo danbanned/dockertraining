@@ -58,8 +58,8 @@ ENV DATABASE_URL=$DATABASE_URL
 COPY --from=deps /app/node_modules ./node_modules
 
 # After copying node_modules, check if vite exists
-RUN ls -la node_modules/.bin/ | grep vite || echo "vite NOT found!"
-RUN npm list vite || echo "vite not in dependency tree"
+RUN ls -la node_modules/.bin/ | grep next || echo "next NOT found!"
+RUN npm list next || echo "next not in dependency tree"
 
 
 
