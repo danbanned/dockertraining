@@ -57,7 +57,7 @@ ENV DATABASE_URL=$DATABASE_URL
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 
-# After copying node_modules, check if vite exists
+# After copying node_modules, check if next exists
 RUN ls -la node_modules/.bin/ | grep next || echo "next NOT found!"
 RUN npm list next || echo "next not in dependency tree"
 

@@ -315,6 +315,7 @@ jobs:
           # (one with the commit SHA and one with "latest" for easy reference)
           # REPO_URL and BRANCH are passed as build args so Docker can clone the code directly
           docker buildx build \
+            --no-cache \
             --cache-from=type=local,src=/tmp/.buildx-cache \
             --cache-to=type=local,dest=/tmp/.buildx-cache-new \
             --build-arg REPO_URL="$REPO_URL" \
