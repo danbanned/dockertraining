@@ -39,8 +39,7 @@ services: #is what holds our containers
         - REPO_URL=${REPO_URL}
         - BRANCH=${BRANCH}
         - DATABASE_URL=${DATABASE_URL} #builds dockerfile from the current directory thats what the periods for 
-
-      command: sh -c "npm ci --include=dev && npm test"
+    command: sh -c "npm ci --include=dev && npm test"
     env_file:
       - .env
       # connects to postgres using one of our service names which is our "db"
