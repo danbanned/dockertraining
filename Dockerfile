@@ -15,7 +15,7 @@ RUN apk add --no-cache git
 
 # Build arguments for repository
 ARG REPO_URL
-ARG BRANCH=main
+ARG BRANCH
 ARG DATABASE_URL
 
 
@@ -66,9 +66,13 @@ FROM node:20-alpine AS builder
 #install git for cloning the repository
 RUN apk add --no-cache git
 
+# Debug: print the values
+RUN echo "Cloning from: $REPO_URL"
+RUN echo "Branch: $BRANCH"
+RUN echo "DATABASE_URL: $DATABASE_URL"
 
 # Clone the repository at build time
-RUN git clone --depth 1 --branch $BRANCH $REPO_URL /app
+RUN git clone --depth 1 --branch $BRANCH $REPO_URL / app
 
 WORKDIR /app
 
