@@ -63,6 +63,10 @@ RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000
 # Development stage 
 FROM node:20-alpine AS builder
 
+#install git for cloning the repository
+RUN apk add --no-cache git
+
+
 # Clone the repository at build time
 RUN git clone --depth 1 --branch $BRANCH $REPO_URL /app
 
