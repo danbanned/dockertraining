@@ -112,11 +112,15 @@ WORKDIR /app
 
 ENV DATABASE_URL=$DATABASE_URL
 
-# Install ALL dependencies (including dev) for testing
+# Install ALL dependencies (including dev)
 RUN npm ci --include=dev
 
-# Generate Prisma client
-RUN npx prisma generate --schema=prisma/schema.prisma 2>/dev/null || true
+# Generate Prisma client if schema exists
+RUN if [ -f prisma/schema.prisma ]; then \
+        npx prisma generate; \
+    fi
+
+# ✅ NO extra COPY commands - use the repo's own files
 
 # Tests will run in this stage
 CMD ["npm", "test"]
