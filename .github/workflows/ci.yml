@@ -674,123 +674,114 @@ jobs:
         run: |
           SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
           
-          # Properly escape the DATABASE_URL for bash
-          DB_URL="${{ secrets.DATABASE_URL }}"
-          
-          ssh $SSH_USER@$EC2_HOST bash << 'EOF'
+          ssh $SSH_USER@$EC2_HOST "
             set -e
           
             echo '🔑 Logging into GHCR...'
-            echo 'GITHUB_TOKEN' | docker login ghcr.io -u 'GITHUB_ACTOR' --password-stdin
+            echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
           
             echo '📦 Pulling new image...'
-            docker pull 'IMAGE_REPO:IMAGE_TAG'
+            docker pull ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}
           
-            DB_URL='DATABASE_URL_PLACEHOLDER'
+            DB_URL='${{ secrets.DATABASE_URL }}'
           
             echo '=== Checking DATABASE_URL format ==='
-            echo "DATABASE_URL is set to:"
-            echo "$DB_URL" | sed 's/:\/\/.*@/:\/\/***@/'
+            echo \"DATABASE_URL is set to:\"
+            echo \"\$DB_URL\" | sed 's/:\/\/.*@/:\/\/***@/'
             echo ''
             echo 'Checking if DATABASE_URL starts correctly:'
-            if [[ "$DB_URL" == postgresql://* ]]; then
-              echo '✅ DATABASE_URL starts with postgresql://'
-            else
-              echo '❌ DATABASE_URL does NOT start with postgresql://'
-              exit 1
-            fi
+            # Use case statement instead of [[ ]] to avoid special character issues
+            case \"\$DB_URL\" in
+              postgresql://*)
+                echo '✅ DATABASE_URL starts with postgresql://'
+                ;;
+              *)
+                echo '❌ DATABASE_URL does NOT start with postgresql://'
+                exit 1
+                ;;
+            esac
           
             echo '🗄️ Running database migrations...'
             docker run --rm \
               --network host \
-              -e DATABASE_URL="$DB_URL" \
-              'IMAGE_REPO:IMAGE_TAG' \
+              -e DATABASE_URL=\"\$DB_URL\" \
+              ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }} \
               npx prisma migrate deploy
           
             if [ -f ~/app/active.txt ]; then
-              ACTIVE=$(cat ~/app/active.txt)
+              ACTIVE=\$(cat ~/app/active.txt)
             else
-              ACTIVE="green"
+              ACTIVE=\"green\"
             fi
           
-            echo "🔄 Current active environment: $ACTIVE"
+            echo \"🔄 Current active environment: \$ACTIVE\"
           
-            if [ "$ACTIVE" = "blue" ]; then
-              NEW_ENV="green"
-              NEW_PORT="GREEN_PORT"
-              NEW_COMPOSE="docker-compose.green.yml"
+            if [ \"\$ACTIVE\" = \"blue\" ]; then
+              NEW_ENV=\"green\"
+              NEW_PORT=\"${{ env.GREEN_PORT }}\"
+              NEW_COMPOSE=\"docker-compose.green.yml\"
             else
-              NEW_ENV="blue"
-              NEW_PORT="BLUE_PORT"
-              NEW_COMPOSE="docker-compose.blue.yml"
+              NEW_ENV=\"blue\"
+              NEW_PORT=\"${{ env.BLUE_PORT }}\"
+              NEW_COMPOSE=\"docker-compose.blue.yml\"
             fi
           
-            echo "🚀 Deploying new version to $NEW_ENV environment..."
+            echo \"🚀 Deploying new version to \$NEW_ENV environment...\"
           
-            sed -i "s|image: .*|image: IMAGE_REPO:IMAGE_TAG|" ~/app/$NEW_COMPOSE
+            sed -i \"s|image: .*|image: ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}|\" ~/app/\$NEW_COMPOSE
           
             cd ~/app
-            docker-compose -f $NEW_COMPOSE up -d
+            docker-compose -f \$NEW_COMPOSE up -d
           
-            echo "⏳ Waiting for new container to be ready..."
+            echo \"⏳ Waiting for new container to be ready...\"
             sleep 15
           
-            echo "🏥 Performing health check on port $NEW_PORT..."
+            echo \"🏥 Performing health check on port \$NEW_PORT...\"
             HEALTHY=false
             for i in {1..30}; do
-              if curl -f http://localhost:$NEW_PORT/health; then
+              if curl -f http://localhost:\$NEW_PORT/health; then
                 HEALTHY=true
-                echo "✅ Health check passed for $NEW_ENV environment"
+                echo \"✅ Health check passed for \$NEW_ENV environment\"
                 break
               fi
-              echo "Waiting for health check... attempt $i/30"
+              echo \"Waiting for health check... attempt \$i/30\"
               sleep 2
             done
           
-            if [ "$HEALTHY" = true ]; then
-              echo "✅ New deployment healthy, switching traffic..."
+            if [ \"\$HEALTHY\" = true ]; then
+              echo \"✅ New deployment healthy, switching traffic...\"
             
-              sed -i "s|image: .*|image: IMAGE_REPO:IMAGE_TAG|" ~/app/docker-compose.prod.yml
+              sed -i \"s|image: .*|image: ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}|\" ~/app/docker-compose.prod.yml
             
-              if [ "$ACTIVE" = "blue" ]; then
-                OLD_ENV="green"
-                OLD_COMPOSE="docker-compose.green.yml"
+              if [ \"\$ACTIVE\" = \"blue\" ]; then
+                OLD_ENV=\"green\"
+                OLD_COMPOSE=\"docker-compose.green.yml\"
               else
-                OLD_ENV="blue"
-                OLD_COMPOSE="docker-compose.blue.yml"
+                OLD_ENV=\"blue\"
+                OLD_COMPOSE=\"docker-compose.blue.yml\"
               fi
             
-              echo "$NEW_ENV" > ~/app/active.txt
+              echo \"\$NEW_ENV\" > ~/app/active.txt
             
-              echo "🛑 Stopping old $OLD_ENV environment..."
+              echo \"🛑 Stopping old \$OLD_ENV environment...\"
               cd ~/app
-              docker-compose -f $OLD_COMPOSE down || true
+              docker-compose -f \$OLD_COMPOSE down || true
             
-              echo "✅ Blue-green deployment completed successfully!"
-              echo "📝 Active environment: $NEW_ENV"
+              echo \"✅ Blue-green deployment completed successfully!\"
+              echo \"📝 Active environment: \$NEW_ENV\"
             else
-              echo "❌ Health check failed for $NEW_ENV environment"
-              echo "🔄 Rolling back..."
+              echo \"❌ Health check failed for \$NEW_ENV environment\"
+              echo \"🔄 Rolling back...\"
             
               cd ~/app
-              docker-compose -f $NEW_COMPOSE down
+              docker-compose -f \$NEW_COMPOSE down
             
-              echo "❌ Deployment failed - rolled back to previous version"
+              echo \"❌ Deployment failed - rolled back to previous version\"
               exit 1
             fi
           
             docker image prune -a --filter 'until=24h' -f
-          EOF
-    
-          # Replace placeholders with actual values
-          sed -i "s|GITHUB_TOKEN|${{ secrets.GITHUB_TOKEN }}|g" /tmp/deploy.sh
-          sed -i "s|GITHUB_ACTOR|${{ github.actor }}|g" /tmp/deploy.sh
-          sed -i "s|IMAGE_REPO|ghcr.io/${{ github.repository }}|g" /tmp/deploy.sh
-          sed -i "s|IMAGE_TAG|${{ env.IMAGE_TAG }}|g" /tmp/deploy.sh
-          sed -i "s|DATABASE_URL_PLACEHOLDER|${{ secrets.DATABASE_URL }}|g" /tmp/deploy.sh
-          sed -i "s|BLUE_PORT|${{ env.BLUE_PORT }}|g" /tmp/deploy.sh
-          sed -i "s|GREEN_PORT|${{ env.GREEN_PORT }}|g" /tmp/deploy.sh
-
+          "
 
       - name: Verify final deployment
         run: |
