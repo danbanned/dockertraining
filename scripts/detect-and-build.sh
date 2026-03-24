@@ -52,14 +52,6 @@ eval $INSTALL_CMD
 
 # In detect-and-build.sh, after installing dependencies:
 
-# ✅ SKIP TESTS FOR NOW (until we fix jest config)
-echo "⚠️ Skipping tests (temporarily disabled)"
-# if npm run 2>/dev/null | grep -q "test"; then
-#     echo "🧪 Running tests..."
-#     npm test
-# fi
-
-
 # -----------------------------------------------------------
 # Run Prisma generate if prisma schema exists
 # -----------------------------------------------------------
@@ -73,10 +65,10 @@ fi
 # -----------------------------------------------------------
 case $FRAMEWORK in
     vite)
-        echo "🏗️  Building Vite app..."
+        echo "🏗️  Building Next. app..."
         npm run build
         ;;
-    next)
+    nexte)
         echo "🏗️  Building next.js app..."
         npm run build
         ;;

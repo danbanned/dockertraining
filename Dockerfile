@@ -144,22 +144,49 @@ COPY --from=builder --chown=nextjs:nodejs /app /app
 
 # Copy specific directories (no shell operators)
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# Copy optional files using RUN with conditionals (FIXED)
-RUN if [ -d "/app/dist" ] && [ ! -d "./dist" ]; then cp -r /app/dist ./dist; fi
-RUN if [ -f "/app/prisma.config.ts" ] && [ ! -f "./prisma.config.ts" ]; then cp /app/prisma.config.ts ./prisma.config.ts; fi
-RUN if [ -f "/app/next.config.js" ] && [ ! -f "./next.config.js" ]; then cp /app/next.config.js ./next.config.js; fi
-RUN if [ -d "/app/scripts" ] && [ ! -d "./scripts" ]; then cp -r /app/scripts ./scripts; fi
+# Copy Next.js build if it exists
+RUN if [ -d "/app/.next" ]; then \
+        echo "📦 Copying Next.js build..."; \
+        cp -r /app/.next ./.next; \
+    fi
+
+# Copy Vite build if it exists
+RUN if [ -d "/app/dist" ]; then \
+        echo "📦 Copying Vite build..."; \
+        cp -r /app/dist ./dist; \
+    fi
+
+# Copy Prisma if it exists
+RUN if [ -d "/app/prisma" ]; then \
+        echo "📦 Copying Prisma schema..."; \
+        cp -r /app/prisma ./prisma; \
+    fi
+
+# Copy optional config files (with same-file check)
+RUN if [ -f "/app/prisma.config.ts" ] && [ ! -f "./prisma.config.ts" ]; then \
+        echo "📄 Copying prisma.config.ts..."; \
+        cp /app/prisma.config.ts ./prisma.config.ts; \
+    fi
+
+RUN if [ -f "/app/next.config.js" ] && [ ! -f "./next.config.js" ]; then \
+        echo "📄 Copying next.config.js..."; \
+        cp /app/next.config.js ./next.config.js; \
+    fi
+
+RUN if [ -d "/app/scripts" ] && [ ! -d "./scripts" ]; then \
+        echo "📁 Copying scripts..."; \
+        cp -r /app/scripts ./scripts; \
+    fi
 
 # Make scripts executable
 RUN if [ -f scripts/detect-and-build.sh ]; then \
         chmod +x scripts/detect-and-build.sh; \
-    fi && \
-    if [ -f scripts/validate-logs.sh ]; then \
-        dos2unix scripts/validate-logs.sh 2>/dev/null || true && \
+    fi
+    
+RUN if [ -f scripts/validate-logs.sh ]; then \
+        dos2unix scripts/validate-logs.sh; \
         chmod +x scripts/validate-logs.sh; \
     fi
 
@@ -172,30 +199,16 @@ ENTRYPOINT ["dumb-init", "--"]
 USER nextjs
 
 CMD ["sh", "-c", "\
-    if [ -f scripts/detect-and-build.sh ]; then \
+    if [ -d .next ]; then \
+        echo '🚀 Starting Next.js application...'; \
+        exec npm start; \
+    elif [ -d dist ]; then \
+        echo '🚀 Starting Vite preview...'; \
+        npx serve -s dist -l $PORT; \
+    elif [ -f scripts/detect-and-build.sh ]; then \
         echo '📜 Starting with detect-and-build.sh...'; \
         ./scripts/detect-and-build.sh; \
     else \
-        echo '📜 No detect-and-build.sh, using inline start detection...'; \
-        if [ -f next.config.js ]; then \
-            echo '🚀 Starting Next.js...'; \
-            exec npm start; \
-        elif [ -f vite.config.js ]; then \
-            if npm run 2>/dev/null | grep -q preview; then \
-                echo '🚀 Starting Vite preview...'; \
-                exec npm run preview; \
-            else \
-                echo '🚀 Starting with npm start...'; \
-                exec npm start; \
-            fi; \
-        elif npm run 2>/dev/null | grep -q start; then \
-            echo '🚀 Starting with npm start...'; \
-            exec npm start; \
-        elif [ -f server.js ]; then \
-            echo '🚀 Starting with node server.js...'; \
-            exec node server.js; \
-        else \
-            echo '❌ No start command found'; \
-            exit 1; \
-        fi; \
+        echo '❌ No build artifacts found'; \
+        exit 1; \
     fi"]
