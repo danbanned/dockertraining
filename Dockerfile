@@ -17,7 +17,7 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 
 # Copy Prisma schema if it exists
-COPY prisma ./prisma 2>/dev/null || true
+COPY prisma ./prisma 
 
 # Install dependencies
 RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000
@@ -47,7 +47,7 @@ COPY --from=deps /app/node_modules ./node_modules
 RUN if [ -n "$REPO_URL" ]; then \
         echo "📦 Cloning repository: $REPO_URL (branch: $BRANCH)"; \
         git clone --depth 1 --branch $BRANCH $REPO_URL /tmp/repo && \
-        cp -r /tmp/repo/* /tmp/repo/.[!.]* . 2>/dev/null || true; \
+        cp -r /tmp/repo/* /tmp/repo/.[!.]* . \
     else \
         echo "📦 Using local files"; \
     fi
@@ -59,7 +59,7 @@ COPY . .
 RUN mkdir -p scripts
 
 # Copy detect-and-build.sh script if it exists locally
-COPY scripts/detect-and-build.sh ./scripts/detect-and-build.sh 2>/dev/null || true
+COPY scripts/detect-and-build.sh ./scripts/detect-and-build.sh 
 
 # Make scripts executable
 RUN if [ -f scripts/detect-and-build.sh ]; then \
