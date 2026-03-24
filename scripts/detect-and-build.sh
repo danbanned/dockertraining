@@ -72,12 +72,12 @@ fi
 # Build the application
 # -----------------------------------------------------------
 case $FRAMEWORK in
-    next)
-        echo "🏗️  Building Next.js app..."
-        npm run build
-        ;;
     vite)
         echo "🏗️  Building Vite app..."
+        npm run build
+        ;;
+    next)
+        echo "🏗️  Building next.js app..."
         npm run build
         ;;
     *)
