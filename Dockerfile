@@ -139,109 +139,66 @@ RUN if [ ! -d ".next" ] && [ ! -d "dist" ]; then \
 # -----------------------------------------------------------
 FROM node:20-alpine AS runner
 
-# Install runtime dependencies
 RUN apk add --no-cache dumb-init curl bash dos2unix
+
+ARG DATABASE_URL
+ENV DATABASE_URL=$DATABASE_URL
 
 WORKDIR /app
 
-# Create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
-# Copy built application from builder
-COPY --from=builder --chown=nextjs:nodejs /app /app
-
-# Copy dependencies
+# Copy only what's needed from builder (not the entire /app)
+# This avoids duplication and recursion issues
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-
-# Copy package.json
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma 2>/dev/null || true
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public 2>/dev/null || true
 
-# Copy build outputs (conditional)
-RUN if [ -d "/app/.next" ]; then \
-        echo "📦 Copying Next.js build..."; \
-        cp -r /app/.next ./.next; \
-    fi
-
-RUN if [ -d "/app/dist" ]; then \
-        echo "📦 Copying Vite build..."; \
-        cp -r /app/dist ./dist; \
-    fi
-
-# Copy public assets
-RUN if [ -d "/app/public" ]; then \
-        cp -r /app/public ./public; \
-    fi
-
-# Copy Prisma files
-RUN if [ -d "/app/prisma" ]; then \
-        echo "📦 Copying Prisma schema..."; \
-        cp -r /app/prisma ./prisma; \
-    fi
-
-# Copy config files
-RUN if [ -f "/app/next.config.js" ] && [ ! -f "./next.config.js" ]; then \
-        echo "📄 Copying next.config.js..."; \
-        cp /app/next.config.js ./next.config.js; \
-    fi
-
-RUN if [ -f "/app/vite.config.js" ] && [ ! -f "./vite.config.js" ]; then \
-        echo "📄 Copying vite.config.js..."; \
-        cp /app/vite.config.js ./vite.config.js; \
-    fi
-
+# Copy optional config files
 RUN if [ -f "/app/prisma.config.ts" ] && [ ! -f "./prisma.config.ts" ]; then \
-        echo "📄 Copying prisma.config.ts..."; \
         cp /app/prisma.config.ts ./prisma.config.ts; \
     fi
 
-# Copy scripts
+RUN if [ -f "/app/next.config.js" ] && [ ! -f "./next.config.js" ]; then \
+        cp /app/next.config.js ./next.config.js; \
+    fi
+
 RUN if [ -d "/app/scripts" ] && [ ! -d "./scripts" ]; then \
-        echo "📁 Copying scripts..."; \
         cp -r /app/scripts ./scripts; \
     fi
 
 # Make scripts executable
+RUN if [ -f scripts/detect-and-build.sh ]; then \
+        chmod +x scripts/detect-and-build.sh; \
+    fi
+    
 RUN if [ -f scripts/validate-logs.sh ]; then \
-        dos2unix scripts/validate-logs.sh && \
+        dos2unix scripts/validate-logs.sh; \
         chmod +x scripts/validate-logs.sh; \
     fi
 
-RUN if [ -f scripts/detect-and-build.sh ]; then \
-        dos2unix scripts/detect-and-build.sh && \
-        chmod +x scripts/detect-and-build.sh; \
-    fi
-
-# Set environment variables
 ENV NODE_ENV=production \
-    PORT=3000 \
-    NEXT_TELEMETRY_DISABLED=1
+    PORT=3000
 
-# Expose port
 EXPOSE 3000
 
-# Use dumb-init as init process
 ENTRYPOINT ["dumb-init", "--"]
-
-# Switch to non-root user
 USER nextjs
 
-# Determine start command based on what was built
 CMD ["sh", "-c", "\
-    if [ -f scripts/detect-and-build.sh ]; then \
-        echo '📜 Running detect-and-build.sh for startup...'; \
+    if [ -d .next ]; then \
+        echo '🚀 Starting Next.js application...'; \
+        exec npm start; \
+    elif [ -d dist ]; then \
+        echo '🚀 Starting Vite preview...'; \
+        npx serve -s dist -l $PORT; \
+    elif [ -f scripts/detect-and-build.sh ]; then \
+        echo '📜 Starting with detect-and-build.sh...'; \
         ./scripts/detect-and-build.sh; \
     else \
-        echo '🚀 Starting application...'; \
-        if [ -d .next ]; then \
-            echo 'Running Next.js migrations and start...'; \
-            npx prisma migrate deploy && npm start; \
-        elif [ -d dist ]; then \
-            echo 'Running Vite preview...'; \
-            npx prisma migrate deploy && npx serve -s dist -l $PORT; \
-        else \
-            echo 'Running with npm start...'; \
-            npx prisma migrate deploy && npm start; \
-        fi; \
+        echo '❌ No build artifacts found'; \
+        exit 1; \
     fi"]
-
