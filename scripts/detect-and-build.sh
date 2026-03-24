@@ -49,6 +49,17 @@ fi
 echo "📥 Installing dependencies..."
 eval $INSTALL_CMD
 
+
+# In detect-and-build.sh, after installing dependencies:
+
+# ✅ RUN TESTS (if they exist)
+if npm run 2>/dev/null | grep -q "test"; then
+    echo "🧪 Running tests..."
+    npm test
+else
+    echo "⚠️ No test script found, skipping tests"
+fi
+
 # -----------------------------------------------------------
 # Run Prisma generate if prisma schema exists
 # -----------------------------------------------------------
