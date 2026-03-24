@@ -180,9 +180,23 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     timeout-minutes: 20
+    environment: production  # Add this to access production secrets
+    env:  # Add this section
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
 
     steps:
+
+      - name: Debug DATABASE_URL in build job
+        run: |
+          if [ -n "${{ secrets.DATABASE_URL }}" ]; then
+            echo "✅ DATABASE_URL is set in build job"
+            echo "Length: $(echo -n '${{ secrets.DATABASE_URL }}' | wc -c)"
+            echo "Starts with: $(echo '${{ secrets.DATABASE_URL }}' | cut -c1-15)"
+          else
+            echo "❌ DATABASE_URL is NOT set in build job"
+          fi
+
       - name: Checkout code
         uses: actions/checkout@v4
 
