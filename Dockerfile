@@ -69,7 +69,7 @@ RUN if [ -f scripts/detect-and-build.sh ]; then \
         elif [ -f "pnpm-lock.yaml" ]; then \
             pnpm install --frozen-lockfile --prod; \
         else \
-            npm ci --omit=dev; \
+            npm ci --include=dev; \
         fi; \
         \
         if [ -f "prisma/schema.prisma" ]; then \
