@@ -461,6 +461,23 @@ jobs:
           file ~/.ssh/id_rsa
           echo "SSH key file exists and has correct permissions"
 
+      # Step 6: Debug - Check SSH key and EC2 configuration
+      - name: Debug SSH configuration
+        run: |
+          echo "=== EC2 Instance Info ==="
+          aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query 'Reservations[0].Instances[0].{KeyName:KeyName,State:State.Name,PublicIp:PublicIpAddress}' \
+            --output table
+          
+          echo "=== SSH Key Info ==="
+          echo "Key name from AWS: $KEY_NAME"
+          echo "SSH key file exists: $(test -f ~/.ssh/id_rsa && echo 'Yes' || echo 'No')"
+          echo "SSH key permissions: $(stat -c %a ~/.ssh/id_rsa 2>/dev/null || echo 'N/A')"
+          
+          echo "=== Testing key format ==="
+          head -1 ~/.ssh/id_rsa
+
 
       - name: Test SSH connection
         run: |
