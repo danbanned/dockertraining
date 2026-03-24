@@ -259,7 +259,7 @@ jobs:
         run: |
           echo "Running detect-and-build script with database ready..."
           docker compose run --rm app ./scripts/detect-and-build.sh
-
+          
 
       # Step 14: Create directory for test results artifacts
       - name: Create test results directory
