@@ -246,9 +246,11 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=512"  # Limit memory usage
           DATABASE_URL: postgresql://postgres:postgres@db:5432/mydb?schema=public
         #run prisma migrate directly inside the app container to ensure it has access to the correct environment variables and dependencies for Prisma, we use the same DATABASE_URL as our app container so it can connect to the database container and run the migrations against it, this ensures our database schema is up to date before we run our tests which depend on the database structure being correct
-        run: docker compose run --rm app npx prisma migrate deploy
+        run: |
+          # Pass the DATABASE_URL environment variable to the container
+          docker compose run --rm -e DATABASE_URL="${{ env.DATABASE_URL }}" app npx prisma migrate deploy
+        # ✅ NOW run the script (database is ready)
 
-      # ✅ NOW run the script (database is ready)
       - name: Run detect-and-build script
         env:
           REPO_URL: "https://github.com/${{ github.repository }}.git"
