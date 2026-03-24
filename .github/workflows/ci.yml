@@ -289,20 +289,60 @@ jobs:
             echo "❌ ERROR: EC2_KEY_NAME secret is not set!"
             exit 1
           fi
-         
+          
+          echo "Using key pair: $KEY_NAME"
+          
+          # Check if key exists in AWS
+          if ! aws ec2 describe-key-pairs --key-names "$KEY_NAME" &>/dev/null; then
+            echo "❌ ERROR: Key pair '$KEY_NAME' not found in AWS!"
+            echo "Available key pairs:"
+            aws ec2 describe-key-pairs --query 'KeyPairs[*].KeyName' --output table
+            exit 1
+          fi
+          
+          # Try to find existing instance
           INSTANCE_ID=$(aws ec2 describe-instances \
             --filters "Name=tag:Name,Values=my-app-production" "Name=instance-state-name,Values=running,stopped" \
             --query 'Reservations[0].Instances[0].InstanceId' \
             --output text)
-         
-          if [ "$INSTANCE_ID" = "None" ] || [ -z "$INSTANCE_ID" ]; then
-            echo "No existing instance found. Creating new one..."
-           
-            if ! aws ec2 describe-key-pairs --key-names "$KEY_NAME"; then
-              echo "❌ ERROR: Key pair '$KEY_NAME' not found in AWS!"
-              exit 1
+          
+          # Check if instance exists and has correct key
+          NEEDS_RECREATION=false
+          
+          if [ "$INSTANCE_ID" != "None" ] && [ -n "$INSTANCE_ID" ]; then
+            echo "Found existing instance: $INSTANCE_ID"
+            
+            # Check the key of the existing instance
+            INSTANCE_KEY=$(aws ec2 describe-instances \
+              --instance-ids $INSTANCE_ID \
+              --query 'Reservations[0].Instances[0].KeyName' \
+              --output text)
+            
+            echo "Instance key: $INSTANCE_KEY"
+            echo "Desired key: $KEY_NAME"
+            
+            if [ "$INSTANCE_KEY" != "$KEY_NAME" ]; then
+              echo "⚠️ Key mismatch! Instance uses '$INSTANCE_KEY' but workflow expects '$KEY_NAME'"
+              NEEDS_RECREATION=true
+            else
+              echo "✅ Instance uses correct key"
             fi
-           
+          else
+            echo "No existing instance found"
+            NEEDS_RECREATION=true
+          fi
+          
+          # Recreate instance if needed
+          if [ "$NEEDS_RECREATION" = true ]; then
+            if [ "$INSTANCE_ID" != "None" ] && [ -n "$INSTANCE_ID" ]; then
+              echo "Terminating old instance: $INSTANCE_ID"
+              aws ec2 terminate-instances --instance-ids $INSTANCE_ID
+              aws ec2 wait instance-terminated --instance-ids $INSTANCE_ID
+              echo "✅ Old instance terminated"
+            fi
+            
+            echo "Creating new instance with key: $KEY_NAME"
+            
             INSTANCE_ID=$(aws ec2 run-instances \
               --image-id ami-0b6c6ebed2801a5cb \
               --count 1 \
@@ -313,27 +353,51 @@ jobs:
               --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=my-app-production},{Key=Environment,Value=production},{Key=CreatedBy,Value=github-actions},{Key=Project,Value=my-app}]' \
               --query 'Instances[0].InstanceId' \
               --output text)
-           
+            
             echo "✅ Created new instance: $INSTANCE_ID"
+            
+            # Wait for instance to be ready
             aws ec2 wait instance-running --instance-ids $INSTANCE_ID
-            sleep 10
+            echo "Waiting 30 seconds for SSH to be ready..."
+            sleep 30
           else
-            echo "✅ Found existing instance: $INSTANCE_ID"
+            # Ensure instance is running
+            STATE=$(aws ec2 describe-instances \
+              --instance-ids $INSTANCE_ID \
+              --query 'Reservations[0].Instances[0].State.Name' \
+              --output text)
+            
+            if [ "$STATE" != "running" ]; then
+              echo "Starting instance (current state: $STATE)"
+              aws ec2 start-instances --instance-ids $INSTANCE_ID
+              aws ec2 wait instance-running --instance-ids $INSTANCE_ID
+              sleep 10
+            fi
           fi
-         
-          STATE=$(aws ec2 describe-instances \
+          
+          # Get public IP
+          PUBLIC_IP=$(aws ec2 describe-instances \
             --instance-ids $INSTANCE_ID \
-            --query 'Reservations[0].Instances[0].State.Name' \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' \
             --output text)
-         
-          if [ "$STATE" != "running" ]; then
-            echo "Starting instance (current state: $STATE)"
-            aws ec2 start-instances --instance-ids $INSTANCE_ID
-            aws ec2 wait instance-running --instance-ids $INSTANCE_ID
-            sleep 10
+          
+          # If no public IP, allocate Elastic IP
+          if [ "$PUBLIC_IP" = "None" ] || [ -z "$PUBLIC_IP" ]; then
+            echo "No public IP found. Allocating Elastic IP..."
+            ALLOC_ID=$(aws ec2 allocate-address --domain vpc --query 'AllocationId' --output text)
+            aws ec2 associate-address --instance-id $INSTANCE_ID --allocation-id $ALLOC_ID
+            PUBLIC_IP=$(aws ec2 describe-addresses --allocation-ids $ALLOC_ID --query 'Addresses[0].PublicIp' --output text)
+            echo "✅ Allocated Elastic IP: $PUBLIC_IP"
           fi
-         
+          
+          # Save to environment
           echo "INSTANCE_ID=$INSTANCE_ID" >> $GITHUB_ENV
+          echo "EC2_HOST=$PUBLIC_IP" >> $GITHUB_ENV
+          
+          echo "=== Instance Ready ==="
+          echo "Instance ID: $INSTANCE_ID"
+          echo "Public IP: $PUBLIC_IP"
+          echo "Key Pair: $KEY_NAME"
 
 
       - name: Get EC2 public IP
@@ -358,9 +422,27 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 700 ~/.ssh
+          
+          # Write the private key - the secret will be masked in logs
+          printf '%s\n' "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          
+          # Remove any Windows line endings if present
+          sed -i 's/\r$//' ~/.ssh/id_rsa
+          
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
+          
+          # Add host to known_hosts
+          ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts 2>/dev/null
+          
+          # Validate the key
+          if ! ssh-keygen -l -f ~/.ssh/id_rsa > /dev/null 2>&1; then
+            echo "❌ Invalid SSH private key format"
+            echo "First line: $(head -1 ~/.ssh/id_rsa)"
+            exit 1
+          fi
+          
+          echo "✅ SSH key validated successfully"
 
 
       - name: Determine correct SSH user
