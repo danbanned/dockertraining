@@ -25,6 +25,7 @@ RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000
 # -----------------------------------------------------------
 # Builder Stage - Universal Build
 # -----------------------------------------------------------
+# Builder Stage - Clone and Build (Universal)
 FROM node:20-alpine AS builder
 
 ARG REPO_URL
@@ -41,11 +42,16 @@ RUN if [ -n "$REPO_URL" ]; then \
         git clone --depth 1 --branch "$BRANCH" "$REPO_URL" /tmp/repo; \
     fi
 
-# Copy files from cloned repo
+# Copy files from cloned repo (excluding . and ..)
 RUN if [ -n "$REPO_URL" ]; then \
         echo "📦 Copying files from cloned repository"; \
         cp -r /tmp/repo/* /app/; \
-        cp -r /tmp/repo/.* /app/; \
+        for file in /tmp/repo/.*; do \
+            basename=$(basename "$file"); \
+            if [ "$basename" != "." ] && [ "$basename" != ".." ]; then \
+                cp -r "$file" /app/; \
+            fi; \
+        done; \
         rm -rf /tmp/repo; \
     else \
         echo "📦 Using local files"; \
@@ -55,14 +61,29 @@ RUN if [ -n "$REPO_URL" ]; then \
 RUN echo "=== Files after clone ===" && \
     ls -la
 
+# Check for Next.js config files without failing
 RUN echo "=== Checking for Next.js config ===" && \
-    ls -la next.config.js && \
-    ls -la next.config.ts
+    if [ -f "next.config.js" ]; then \
+        echo "Found next.config.js"; \
+        ls -la next.config.js; \
+    fi && \
+    if [ -f "next.config.ts" ]; then \
+        echo "Found next.config.ts"; \
+        ls -la next.config.ts; \
+    fi
 
+# Check for Vite config files without failing
 RUN echo "=== Checking for Vite config ===" && \
-    ls -la vite.config.js && \
-    ls -la vite.config.ts
+    if [ -f "vite.config.js" ]; then \
+        echo "Found vite.config.js"; \
+        ls -la vite.config.js; \
+    fi && \
+    if [ -f "vite.config.ts" ]; then \
+        echo "Found vite.config.ts"; \
+        ls -la vite.config.ts; \
+    fi
 
+# Check package.json
 RUN echo "=== Checking package.json ===" && \
     cat package.json | head -20
 
