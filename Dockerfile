@@ -1,204 +1,198 @@
 
 # -----------------------------------------------------------
-# Base Image - Dependencies Stage
+# Base Image
 # -----------------------------------------------------------
+# Use the official Node.js version 20 Alpine image.
+# "Alpine" is a lightweight Linux distribution, which keeps
+# the image small and efficient.
+# This image already contains Node.js and npm installed.
+# dockerfile mlti-stage build for next.js application
 FROM node:20-alpine AS deps
+# -----------------------------------------------------------
+# Working Directory
+# -----------------------------------------------------------
+# Sets the working directory inside the container to /app.
+# All following commands (COPY, RUN, CMD) will execute
+# relative to this directory.
+WORKDIR /app
 
-# Install git and other tools for cloning
-RUN apk add --no-cache git bash curl wget dos2unix ca-certificates && \
-    update-ca-certificates
 
-# Install dumb-init for proper signal handling
+
+
+# Install dumb-init for proper signal handling, places a receptionist in front of your apps folder directory
 RUN apk add --no-cache dumb-init
 
-WORKDIR /app
 
-# Copy package files first for better caching
+# so our script works make sure bash is installed in your Docker image.
+RUN apk add --no-cache bash dos2unix curl git ca-certificates && update-ca-certificates
+
+
+# docker compose is using wget so install it in our image
+RUN apk add --no-cache curl wget
+
+
+
+
+# -----------------------------------------------------------
+# Install Dependencies
+# -----------------------------------------------------------
+# First we copy only package.json and package-lock.json.
+# This allows Docker to cache dependency installation.
+# If your dependencies don't change, Docker won't reinstall
+# them on every rebuild — which makes builds faster.
 COPY package.json package-lock.json ./
+# copy the Prisma schema
+COPY prisma ./prisma
 
-# Copy Prisma schema if it exists
-COPY prisma ./prisma 
 
-# Install dependencies
+# Install all Node dependencies defined in package.json.
+# This includes:
+# - Next.js
+# - React
+# - Prisma
+# - Any other libraries your app depends on
+
+
 RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000
 
-# -----------------------------------------------------------
-# Builder Stage - Universal Build
-# -----------------------------------------------------------
-# Builder Stage - Clone and Build (Universal)
+
+# Development stage
 FROM node:20-alpine AS builder
 
-ARG REPO_URL
-ARG BRANCH
-ARG DATABASE_URL
-
-RUN apk add --no-cache git bash curl dos2unix
 
 WORKDIR /app
 
-# Clone the repository
-RUN if [ -n "$REPO_URL" ]; then \
-        echo "📦 Cloning repository: $REPO_URL (branch: $BRANCH)"; \
-        git clone --depth 1 --branch "$BRANCH" "$REPO_URL" /tmp/repo; \
-    fi
 
-# Copy files from cloned repo (excluding . and ..)
-RUN if [ -n "$REPO_URL" ]; then \
-        echo "📦 Copying files from cloned repository"; \
-        cp -r /tmp/repo/* /app/; \
-        for file in /tmp/repo/.*; do \
-            basename=$(basename "$file"); \
-            if [ "$basename" != "." ] && [ "$basename" != ".." ]; then \
-                cp -r "$file" /app/; \
-            fi; \
-        done; \
-        rm -rf /tmp/repo; \
-    else \
-        echo "📦 Using local files"; \
-    fi
+# 1. Declare the build argument
+ARG DATABASE_URL
 
-# Debug: Check what files we have
-RUN echo "=== Files after clone ===" && \
-    ls -la
 
-# Check for Next.js config files without failing
-RUN echo "=== Checking for Next.js config ===" && \
-    if [ -f "next.config.js" ]; then \
-        echo "Found next.config.js"; \
-        ls -la next.config.js; \
-    fi && \
-    if [ -f "next.config.ts" ]; then \
-        echo "Found next.config.ts"; \
-        ls -la next.config.ts; \
-    fi
-
-# Check for Vite config files without failing
-RUN echo "=== Checking for Vite config ===" && \
-    if [ -f "vite.config.js" ]; then \
-        echo "Found vite.config.js"; \
-        ls -la vite.config.js; \
-    fi && \
-    if [ -f "vite.config.ts" ]; then \
-        echo "Found vite.config.ts"; \
-        ls -la vite.config.ts; \
-    fi
-
-# Check package.json
-RUN echo "=== Checking package.json ===" && \
-    cat package.json | head -20
-
-# Set environment variable for database
+# 2. Use it, for example by setting an environment variable
 ENV DATABASE_URL=$DATABASE_URL
 
-# Install dependencies
-RUN npm ci --include=dev
 
-# Copy detection script if it exists locally
-COPY scripts/detect-and-build.sh /tmp/detect-and-build.sh
-RUN if [ -f /tmp/detect-and-build.sh ]; then \
-        mkdir -p scripts && \
-        cp /tmp/detect-and-build.sh scripts/detect-and-build.sh && \
-        chmod +x scripts/detect-and-build.sh; \
-    fi
+#copy dependecies from deps stage
+COPY --from=deps /app/node_modules ./node_modules
 
-# Run the build script
-RUN if [ -f scripts/detect-and-build.sh ]; then \
-        echo "📜 Using detect-and-build.sh from repository"; \
-        ./scripts/detect-and-build.sh; \
-    else \
-        echo "📜 No detect-and-build.sh found, using inline detection"; \
-        echo "🔍 Detecting project type..."; \
-        if [ -f "next.config.js" ] || [ -f "next.config.ts" ]; then \
-            echo "🏗️ Building Next.js app..."; \
-            npm run build; \
-        elif [ -f "vite.config.js" ] || [ -f "vite.config.ts" ]; then \
-            echo "🏗️ Building Vite app..."; \
-            npm run build; \
-        else \
-            echo "⚠️ No build script found"; \
-        fi; \
-    fi
 
-# Verify build output
-RUN echo "=== Build verification ==="
-RUN if [ -d ".next" ]; then \
-        echo "✅ Next.js build successful"; \
-        ls -la .next; \
-    fi
-RUN if [ -d "dist" ]; then \
-        echo "✅ Vite build successful"; \
-        ls -la dist; \
-    fi
-RUN if [ ! -d ".next" ] && [ ! -d "dist" ]; then \
-        echo "❌ No build output found"; \
-        exit 1; \
-    fi
+# Copy Prisma configuration FIRST (important for Prisma 7)
+COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
+
 
 # -----------------------------------------------------------
-# Production Stage - Runner (Universal)
+# Copy Application Source Code
 # -----------------------------------------------------------
+# Now copy the entire project into the container.
+# This includes:
+# - Next.js pages/app directory
+# - Components
+# - Prisma folder (schema + migrations)
+# - Public assets
+# - Configuration files
+COPY public ./public
+COPY . .
+
+
+# Make scripts executable
+RUN dos2unix scripts/validate-logs.sh && chmod +x scripts/validate-logs.sh
+
+
+
+
+
+
+
+
+
+
+
+
+# -----------------------------------------------------------
+# Generate Prisma Client
+# -----------------------------------------------------------
+# Prisma uses your schema.prisma file to generate a type-safe
+# database client.
+#
+# This step:
+# - Reads prisma/schema.prisma
+# - Generates database client code inside node_modules/.prisma
+#
+# Your application uses this generated client to communicate
+# with your database (PostgreSQL, MySQL, etc.).
+RUN npx prisma generate --schema=prisma/schema.prisma
+# -----------------------------------------------------------
+# Build Application
+# -----------------------------------------------------------
+# Builds the Next.js production bundle.
+# This compiles your application into optimized production code.
+# After this step, your app is ready to run in production mode.
+RUN npm run build
+
+
+#production stage
+
+
+# production stage
 FROM node:20-alpine AS runner
 
+
+# Install bash, dumb-init, curl for health checks
 RUN apk add --no-cache dumb-init curl bash dos2unix
 
-ARG DATABASE_URL
-ENV DATABASE_URL=$DATABASE_URL
 
+# set working directory
 WORKDIR /app
 
+
+ENV DATABASE_URL=${DATABASE_URL}
+
+
+
+
+# create non-root user
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
-# Copy only what's needed from builder (not the entire /app)
-# This avoids duplication and recursion issues
+
+
+
+# copy built app + dependencies from builder
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
+# Copy Prisma config + schema (required for migrations)
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public 
+COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
+COPY --from=builder --chown=nextjs:nodejs /app/next.config.js ./next.config.js
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 
-# Copy optional config files
-RUN if [ -f "/app/prisma.config.ts" ] && [ ! -f "./prisma.config.ts" ]; then \
-        cp /app/prisma.config.ts ./prisma.config.ts; \
-    fi
-
-RUN if [ -f "/app/next.config.js" ] && [ ! -f "./next.config.js" ]; then \
-        cp /app/next.config.js ./next.config.js; \
-    fi
-
-RUN if [ -d "/app/scripts" ] && [ ! -d "./scripts" ]; then \
-        cp -r /app/scripts ./scripts; \
-    fi
 
 # Make scripts executable
-RUN if [ -f scripts/detect-and-build.sh ]; then \
-        chmod +x scripts/detect-and-build.sh; \
-    fi
-    
-RUN if [ -f scripts/validate-logs.sh ]; then \
-        dos2unix scripts/validate-logs.sh; \
-        chmod +x scripts/validate-logs.sh; \
-    fi
+RUN dos2unix /app/scripts/validate-logs.sh && chmod +x /app/scripts/validate-logs.sh
 
+
+
+
+# set env variables
 ENV NODE_ENV=production \
-    PORT=3000
+    PORT=3000 \
+    NEXT_TELEMETRY_DISABLED=1
 
+
+# expose port
 EXPOSE 3000
 
+
+# use dumb-init as init process
 ENTRYPOINT ["dumb-init", "--"]
+
+
+# switch to non-root user
 USER nextjs
 
-CMD ["sh", "-c", "\
-    if [ -d .next ]; then \
-        echo '🚀 Starting Next.js application...'; \
-        exec npm start; \
-    elif [ -d dist ]; then \
-        echo '🚀 Starting Vite preview...'; \
-        npx serve -s dist -l $PORT; \
-    elif [ -f scripts/detect-and-build.sh ]; then \
-        echo '📜 Starting with detect-and-build.sh...'; \
-        ./scripts/detect-and-build.sh; \
-    else \
-        echo '❌ No build artifacts found'; \
-        exit 1; \
-    fi"]
+
+# start app
+CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
+
