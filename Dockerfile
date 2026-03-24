@@ -47,8 +47,9 @@ WORKDIR /app
 # Set environment variable for database
 ENV DATABASE_URL=$DATABASE_URL
 
-# Install ONLY production dependencies
-RUN npm ci --omit=dev
+# ✅ Install ALL dependencies (including dev) for building
+RUN npm ci --include=dev
+
 
 # Make the detection script executable (if it exists in the cloned repo)
 RUN if [ -f scripts/detect-and-build.sh ]; then \
@@ -139,6 +140,14 @@ RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
 COPY --from=builder --chown=nextjs:nodejs /app /app
+
+# ✅ Copy ONLY production dependencies and built app
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next 2>/dev/null || true
+COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist 2>/dev/null || true
+COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
+COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
+
 
 RUN if [ -f scripts/detect-and-build.sh ]; then \
         chmod +x scripts/detect-and-build.sh; \
