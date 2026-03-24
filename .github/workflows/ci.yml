@@ -455,6 +455,50 @@ jobs:
           ssh-keyscan -H $EC2_HOST >> ~/.ssh/known_hosts
 
 
+      # Step: Check instance key pair
+      - name: Check instance key pair
+        run: |
+          INSTANCE_KEY=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query 'Reservations[0].Instances[0].KeyName' \
+            --output text)
+          
+          echo "Instance is using key pair: $INSTANCE_KEY"
+          echo "Your GitHub secret EC2_KEY_NAME is: ${{ secrets.EC2_KEY_NAME }}"
+          
+          if [ "$INSTANCE_KEY" != "${{ secrets.EC2_KEY_NAME }}" ]; then
+            echo "❌ Key mismatch! The instance requires key: $INSTANCE_KEY"
+            echo "But you're trying to use: ${{ secrets.EC2_KEY_NAME }}"
+            exit 1
+          else
+            echo "✅ Key names match!"
+          fi
+
+     # After getting EC2 host, add this step
+      - name: Debug EC2 instance key pair
+        run: |
+          echo "=== EC2 Instance Details ==="
+          aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query 'Reservations[0].Instances[0].{KeyName:KeyName,State:State.Name,PublicDnsName:PublicDnsName,ImageId:ImageId}' \
+            --output table
+          
+          echo ""
+          echo "=== Checking what user this AMI uses ==="
+          IMAGE_ID=$(aws ec2 describe-instances \
+            --instance-ids $INSTANCE_ID \
+            --query 'Reservations[0].Instances[0].ImageId' \
+            --output text)
+          
+          echo "AMI ID: $IMAGE_ID"
+          
+          # Check if it's Amazon Linux or Ubuntu
+          if [[ $IMAGE_ID == ami-* ]]; then
+            echo "Checking AMI description..."
+            aws ec2 describe-images --image-ids $IMAGE_ID --query 'Images[0].Description' --output text
+          fi
+
+
       - name: Debug - Check SSH key
         run: |
           ls -la ~/.ssh/
@@ -479,10 +523,14 @@ jobs:
           head -1 ~/.ssh/id_rsa
 
 
+      # Step 7: Test SSH connection with different usernames
       - name: Test SSH connection
         run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@$EC2_HOST "echo 'SSH connection successful'"
-
+          echo "Testing with ubuntu user..."
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ubuntu@$EC2_HOST "echo 'SSH connection successful'" || true
+          
+          echo "Testing with ec2-user..."
+          ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ec2-user@$EC2_HOST "echo 'SSH connection successful'" || true
 
       - name: Install Docker and Docker Compose on EC2
         run: |
