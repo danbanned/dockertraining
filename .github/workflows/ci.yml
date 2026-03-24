@@ -280,11 +280,9 @@ jobs:
     timeout-minutes: 20
     environment: production
 
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -292,7 +290,6 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_DEFAULT_REGION }}
-
 
       - name: Get or create EC2 instance
         id: ensure-instance
@@ -413,7 +410,6 @@ jobs:
           echo "Public IP: $PUBLIC_IP"
           echo "Key Pair: $KEY_NAME"
 
-
       - name: Get EC2 public IP
         run: |
           PUBLIC_IP=$(aws ec2 describe-instances \
@@ -431,7 +427,6 @@ jobs:
          
           echo "EC2_HOST=$PUBLIC_IP" >> $GITHUB_ENV
           echo "✅ EC2 IP: $PUBLIC_IP"
-
 
       - name: Setup SSH
         run: |
@@ -458,6 +453,43 @@ jobs:
           
           echo "✅ SSH key validated successfully"
 
+      # DEBUG STEP 1: Verify DATABASE_URL on local runner
+      - name: DEBUG - Verify DATABASE_URL on local runner
+        env:
+          DB_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "=== Local DATABASE_URL Debug ==="
+          echo "DATABASE_URL length: ${#DB_URL}"
+          echo "DATABASE_URL first 20 chars: ${DB_URL:0:20}"
+          echo "DATABASE_URL contains 'postgresql': $(echo $DB_URL | grep -c postgresql || echo '0')"
+          echo "DATABASE_URL contains 'neon': $(echo $DB_URL | grep -c neon || echo '0')"
+          if [[ "$DB_URL" == postgresql://* ]]; then
+            echo "✅ URL format is correct on local runner"
+          else
+            echo "❌ URL format is INCORRECT on local runner"
+            echo "Current start: ${DB_URL:0:20}"
+            exit 1
+          fi
+
+      # DEBUG STEP 2: Test passing DATABASE_URL through SSH
+      - name: DEBUG - Test DATABASE_URL through SSH
+        run: |
+          SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
+          echo "=== Testing DATABASE_URL transmission through SSH ==="
+          
+          # Test with echo
+          ssh $SSH_USER@$EC2_HOST "
+            echo 'Remote test 1 - Direct echo:'
+            echo '${{ secrets.DATABASE_URL }}' | cut -c1-30
+          "
+          
+          # Test with variable
+          ssh $SSH_USER@$EC2_HOST "
+            DB_URL='${{ secrets.DATABASE_URL }}'
+            echo 'Remote test 2 - Variable:'
+            echo \"\$DB_URL\" | cut -c1-30
+            echo \"Length: \${#DB_URL}\"
+          "
 
       - name: Determine correct SSH user
         id: ssh-user
@@ -483,7 +515,6 @@ jobs:
           echo "SSH_USER=$SSH_USER" >> $GITHUB_OUTPUT
           echo "Will use SSH user: $SSH_USER"
 
-
       - name: Check instance key pair
         run: |
           INSTANCE_KEY=$(aws ec2 describe-instances \
@@ -501,7 +532,6 @@ jobs:
             echo "✅ Key names match!"
           fi
 
-
       - name: Debug EC2 instance details
         run: |
           echo "=== EC2 Instance Details ==="
@@ -510,13 +540,11 @@ jobs:
             --query 'Reservations[0].Instances[0].{KeyName:KeyName,State:State.Name,PublicDnsName:PublicDnsName,ImageId:ImageId}' \
             --output table
 
-
       - name: Debug SSH key
         run: |
           ls -la ~/.ssh/
           file ~/.ssh/id_rsa
           echo "SSH key file exists and has correct permissions"
-
 
       - name: Debug SSH configuration
         run: |
@@ -532,13 +560,11 @@ jobs:
           echo "=== Testing key format ==="
           head -1 ~/.ssh/id_rsa
 
-
       - name: Test SSH connection
         run: |
           SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
           echo "Testing SSH connection with user: $SSH_USER"
           ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 $SSH_USER@$EC2_HOST "echo 'SSH connection successful'"
-
 
       - name: Install Docker and Docker Compose on EC2
         run: |
@@ -570,7 +596,6 @@ jobs:
            
             mkdir -p ~/app
           "
-
 
       - name: Create Docker Compose files for blue-green deployment
         run: |
@@ -683,119 +708,144 @@ jobs:
           EOF_NGINX
           "
 
+      # DEBUG STEP 3: Create a file with the URL on remote server
+      - name: DEBUG - Save DATABASE_URL to remote file
+        env:
+          DB_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
+          echo "=== Saving DATABASE_URL to remote file ==="
+          echo "$DB_URL" | ssh $SSH_USER@$EC2_HOST "cat > /tmp/db_url.txt"
+          
+          # Verify it was saved correctly
+          ssh $SSH_USER@$EC2_HOST "
+            echo 'Remote file contents (first 30 chars):'
+            cat /tmp/db_url.txt | cut -c1-30
+            echo ''
+            echo 'File length:'
+            wc -c /tmp/db_url.txt
+          "
 
       - name: Blue-Green Deployment with Docker Compose
+        env:
+          DB_URL: ${{ secrets.DATABASE_URL }}
         run: |
           SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
           
-          ssh $SSH_USER@$EC2_HOST "
+          # Read the URL from the file on the remote server
+          ssh $SSH_USER@$EC2_HOST bash << 'EOF'
             set -e
-          
+            
+            # Read the URL from the file we saved
+            DB_URL=$(cat /tmp/db_url.txt)
+            
             echo '🔑 Logging into GHCR...'
             echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
-          
+            
             echo '📦 Pulling new image...'
             docker pull ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}
-          
-            DB_URL='${{ secrets.DATABASE_URL }}'
-          
+            
             echo '=== Checking DATABASE_URL format ==='
-            echo \"DATABASE_URL is set to:\"
-            echo \"\$DB_URL\" | sed 's/:\/\/.*@/:\/\/***@/'
+            echo "DATABASE_URL is set to:"
+            echo "$DB_URL" | sed 's/:\/\/.*@/:\/\/***@/'
+            echo ''
+            echo "First 20 chars: ${DB_URL:0:20}"
             echo ''
             echo 'Checking if DATABASE_URL starts correctly:'
-            # Use case statement instead of [[ ]] to avoid special character issues
-            case \"\$DB_URL\" in
+            case "$DB_URL" in
               postgresql://*)
                 echo '✅ DATABASE_URL starts with postgresql://'
                 ;;
               *)
                 echo '❌ DATABASE_URL does NOT start with postgresql://'
+                echo "First 20 chars: ${DB_URL:0:20}"
                 exit 1
                 ;;
             esac
-          
+            
             echo '🗄️ Running database migrations...'
             docker run --rm \
               --network host \
-              -e DATABASE_URL=\"\$DB_URL\" \
+              -e DATABASE_URL="$DB_URL" \
               ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }} \
               npx prisma migrate deploy
-          
+            
             if [ -f ~/app/active.txt ]; then
-              ACTIVE=\$(cat ~/app/active.txt)
+              ACTIVE=$(cat ~/app/active.txt)
             else
-              ACTIVE=\"green\"
+              ACTIVE="green"
             fi
-          
-            echo \"🔄 Current active environment: \$ACTIVE\"
-          
-            if [ \"\$ACTIVE\" = \"blue\" ]; then
-              NEW_ENV=\"green\"
-              NEW_PORT=\"${{ env.GREEN_PORT }}\"
-              NEW_COMPOSE=\"docker-compose.green.yml\"
+            
+            echo "🔄 Current active environment: $ACTIVE"
+            
+            if [ "$ACTIVE" = "blue" ]; then
+              NEW_ENV="green"
+              NEW_PORT="${{ env.GREEN_PORT }}"
+              NEW_COMPOSE="docker-compose.green.yml"
             else
-              NEW_ENV=\"blue\"
-              NEW_PORT=\"${{ env.BLUE_PORT }}\"
-              NEW_COMPOSE=\"docker-compose.blue.yml\"
+              NEW_ENV="blue"
+              NEW_PORT="${{ env.BLUE_PORT }}"
+              NEW_COMPOSE="docker-compose.blue.yml"
             fi
-          
-            echo \"🚀 Deploying new version to \$NEW_ENV environment...\"
-          
-            sed -i \"s|image: .*|image: ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}|\" ~/app/\$NEW_COMPOSE
-          
+            
+            echo "🚀 Deploying new version to $NEW_ENV environment..."
+            
+            sed -i "s|image: .*|image: ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}|" ~/app/$NEW_COMPOSE
+            
             cd ~/app
-            docker-compose -f \$NEW_COMPOSE up -d
-          
-            echo \"⏳ Waiting for new container to be ready...\"
+            docker-compose -f $NEW_COMPOSE up -d
+            
+            echo "⏳ Waiting for new container to be ready..."
             sleep 15
-          
-            echo \"🏥 Performing health check on port \$NEW_PORT...\"
+            
+            echo "🏥 Performing health check on port $NEW_PORT..."
             HEALTHY=false
             for i in {1..30}; do
-              if curl -f http://localhost:\$NEW_PORT/health; then
+              if curl -f http://localhost:$NEW_PORT/health; then
                 HEALTHY=true
-                echo \"✅ Health check passed for \$NEW_ENV environment\"
+                echo "✅ Health check passed for $NEW_ENV environment"
                 break
               fi
-              echo \"Waiting for health check... attempt \$i/30\"
+              echo "Waiting for health check... attempt $i/30"
               sleep 2
             done
-          
-            if [ \"\$HEALTHY\" = true ]; then
-              echo \"✅ New deployment healthy, switching traffic...\"
             
-              sed -i \"s|image: .*|image: ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}|\" ~/app/docker-compose.prod.yml
-            
-              if [ \"\$ACTIVE\" = \"blue\" ]; then
-                OLD_ENV=\"green\"
-                OLD_COMPOSE=\"docker-compose.green.yml\"
+            if [ "$HEALTHY" = true ]; then
+              echo "✅ New deployment healthy, switching traffic..."
+              
+              sed -i "s|image: .*|image: ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}|" ~/app/docker-compose.prod.yml
+              
+              if [ "$ACTIVE" = "blue" ]; then
+                OLD_ENV="green"
+                OLD_COMPOSE="docker-compose.green.yml"
               else
-                OLD_ENV=\"blue\"
-                OLD_COMPOSE=\"docker-compose.blue.yml\"
+                OLD_ENV="blue"
+                OLD_COMPOSE="docker-compose.blue.yml"
               fi
-            
-              echo \"\$NEW_ENV\" > ~/app/active.txt
-            
-              echo \"🛑 Stopping old \$OLD_ENV environment...\"
+              
+              echo "$NEW_ENV" > ~/app/active.txt
+              
+              echo "🛑 Stopping old $OLD_ENV environment..."
               cd ~/app
-              docker-compose -f \$OLD_COMPOSE down || true
-            
-              echo \"✅ Blue-green deployment completed successfully!\"
-              echo \"📝 Active environment: \$NEW_ENV\"
+              docker-compose -f $OLD_COMPOSE down || true
+              
+              echo "✅ Blue-green deployment completed successfully!"
+              echo "📝 Active environment: $NEW_ENV"
             else
-              echo \"❌ Health check failed for \$NEW_ENV environment\"
-              echo \"🔄 Rolling back...\"
-            
+              echo "❌ Health check failed for $NEW_ENV environment"
+              echo "🔄 Rolling back..."
+              
               cd ~/app
-              docker-compose -f \$NEW_COMPOSE down
-            
-              echo \"❌ Deployment failed - rolled back to previous version\"
+              docker-compose -f $NEW_COMPOSE down
+              
+              echo "❌ Deployment failed - rolled back to previous version"
               exit 1
             fi
-          
+            
+            # Clean up
+            rm -f /tmp/db_url.txt
             docker image prune -a --filter 'until=24h' -f
-          "
+          EOF
 
       - name: Verify final deployment
         run: |
@@ -821,12 +871,9 @@ jobs:
           curl -f http://$EC2_HOST/health && echo "✅ Health check passed at http://$EC2_HOST/health" || echo "⚠️ Health check endpoint not available"
           echo "✅ Deployed at http://$EC2_HOST"
 
-
       - name: Cleanup
         if: always()
         run: rm -f ~/.ssh/id_rsa
-
-
   # -----------------------------------------------------
   # Job Name: Cleanup orphaned instances (Monthly)
   # -----------------------------------------------------
