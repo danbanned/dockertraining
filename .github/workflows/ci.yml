@@ -291,6 +291,11 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     timeout-minutes: 20  # Give builds extra time
 
+
+    environment: production  # Add this to access environment secrets
+    env:  # Add this section
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
     steps:
       # Step 1: Checkout the code
       - name: Checkout code

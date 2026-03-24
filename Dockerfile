@@ -148,11 +148,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
-# Copy optional files using RUN with conditionals
-RUN if [ -d "/app/dist" ]; then cp -r /app/dist ./dist; fi
-RUN if [ -f "/app/prisma.config.ts" ]; then cp /app/prisma.config.ts ./prisma.config.ts; fi
-RUN if [ -f "/app/next.config.js" ]; then cp /app/next.config.js ./next.config.js; fi
-RUN if [ -d "/app/scripts" ]; then cp -r /app/scripts ./scripts; fi
+# Copy optional files using RUN with conditionals (FIXED)
+RUN if [ -d "/app/dist" ] && [ ! -d "./dist" ]; then cp -r /app/dist ./dist; fi
+RUN if [ -f "/app/prisma.config.ts" ] && [ ! -f "./prisma.config.ts" ]; then cp /app/prisma.config.ts ./prisma.config.ts; fi
+RUN if [ -f "/app/next.config.js" ] && [ ! -f "./next.config.js" ]; then cp /app/next.config.js ./next.config.js; fi
+RUN if [ -d "/app/scripts" ] && [ ! -d "./scripts" ]; then cp -r /app/scripts ./scripts; fi
 
 # Make scripts executable
 RUN if [ -f scripts/detect-and-build.sh ]; then \
