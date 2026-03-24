@@ -27,91 +27,90 @@ RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000
 # -----------------------------------------------------------
 FROM node:20-alpine AS builder
 
-# Install build tools
-RUN apk add --no-cache git bash curl dos2unix
-
-WORKDIR /app
-
-# Build arguments for repository cloning
 ARG REPO_URL
 ARG BRANCH
 ARG DATABASE_URL
 
-# Set environment variables
-ENV DATABASE_URL=$DATABASE_URL
+RUN apk add --no-cache git bash curl dos2unix
 
-# Copy dependencies from deps stage
-COPY --from=deps /app/node_modules ./node_modules
+WORKDIR /app
 
-# Clone the repository if REPO_URL is provided, otherwise use local files
+# Clone the repository
 RUN if [ -n "$REPO_URL" ]; then \
         echo "📦 Cloning repository: $REPO_URL (branch: $BRANCH)"; \
-        git clone --depth 1 --branch $BRANCH $REPO_URL /tmp/repo && \
-        cp -r /tmp/repo/* /tmp/repo/.[!.]* . \
+        git clone --depth 1 --branch "$BRANCH" "$REPO_URL" /tmp/repo; \
+    fi
+
+# Copy files from cloned repo
+RUN if [ -n "$REPO_URL" ]; then \
+        echo "📦 Copying files from cloned repository"; \
+        cp -r /tmp/repo/* /app/; \
+        cp -r /tmp/repo/.* /app/; \
+        rm -rf /tmp/repo; \
     else \
         echo "📦 Using local files"; \
     fi
 
-# Copy local files if they exist (for local builds)
-COPY . .
+# Debug: Check what files we have
+RUN echo "=== Files after clone ===" && \
+    ls -la
 
-# Create scripts directory if it doesn't exist
-RUN mkdir -p scripts
+RUN echo "=== Checking for Next.js config ===" && \
+    ls -la next.config.js && \
+    ls -la next.config.ts
 
-# Copy detect-and-build.sh script if it exists locally
-COPY scripts/detect-and-build.sh ./scripts/detect-and-build.sh 
+RUN echo "=== Checking for Vite config ===" && \
+    ls -la vite.config.js && \
+    ls -la vite.config.ts
 
-# Make scripts executable
-RUN if [ -f scripts/detect-and-build.sh ]; then \
-        dos2unix scripts/detect-and-build.sh && \
+RUN echo "=== Checking package.json ===" && \
+    cat package.json | head -20
+
+# Set environment variable for database
+ENV DATABASE_URL=$DATABASE_URL
+
+# Install dependencies
+RUN npm ci --include=dev
+
+# Copy detection script if it exists locally
+COPY scripts/detect-and-build.sh /tmp/detect-and-build.sh
+RUN if [ -f /tmp/detect-and-build.sh ]; then \
+        mkdir -p scripts && \
+        cp /tmp/detect-and-build.sh scripts/detect-and-build.sh && \
         chmod +x scripts/detect-and-build.sh; \
     fi
 
-# Run the universal build script
+# Run the build script
 RUN if [ -f scripts/detect-and-build.sh ]; then \
-        echo "📜 Running universal build script..."; \
+        echo "📜 Using detect-and-build.sh from repository"; \
         ./scripts/detect-and-build.sh; \
     else \
-        echo "⚠️ No detect-and-build.sh found, using inline build"; \
-        \
-        # Install dependencies if needed
-        if [ ! -d "node_modules" ]; then \
-            npm ci --include=dev; \
-        fi; \
-        \
-        # Generate Prisma client if schema exists
-        if [ -f "prisma/schema.prisma" ]; then \
-            echo "🗄️ Generating Prisma client..."; \
-            npx prisma generate --schema=prisma/schema.prisma; \
-        fi; \
-        \
-        # Detect framework and build
+        echo "📜 No detect-and-build.sh found, using inline detection"; \
+        echo "🔍 Detecting project type..."; \
         if [ -f "next.config.js" ] || [ -f "next.config.ts" ]; then \
             echo "🏗️ Building Next.js app..."; \
-            export NODE_ENV=production; \
             npm run build; \
         elif [ -f "vite.config.js" ] || [ -f "vite.config.ts" ]; then \
             echo "🏗️ Building Vite app..."; \
             npm run build; \
-        elif npm run | grep -q "build"; then \
-            echo "🏗️ Running build script..."; \
-            npm run build; \
         else \
-            echo "❌ No build script found"; \
-            exit 1; \
+            echo "⚠️ No build script found"; \
         fi; \
     fi
 
 # Verify build output
-RUN echo "📦 Verifying build output..." && \
-    if [ -d ".next" ]; then \
-        echo "✅ Next.js build detected"; \
+RUN echo "=== Build verification ==="
+RUN if [ -d ".next" ]; then \
+        echo "✅ Next.js build successful"; \
         ls -la .next; \
-    elif [ -d "dist" ]; then \
-        echo "✅ Vite build detected"; \
+    fi
+RUN if [ -d "dist" ]; then \
+        echo "✅ Vite build successful"; \
         ls -la dist; \
-    else \
-        echo "⚠️ No standard build output found"; \
+    fi
+RUN if [ ! -d ".next" ] && [ ! -d "dist" ]; then \
+        echo "❌ No build output found"; \
+        exit 1; \
     fi
 
 # -----------------------------------------------------------
