@@ -870,6 +870,7 @@ jobs:
          
           curl -f http://$EC2_HOST/health && echo "✅ Health check passed at http://$EC2_HOST/health" || echo "⚠️ Health check endpoint not available"
           echo "✅ Deployed at http://$EC2_HOST"
+          # Note: In a real deployment, you would want to use a domain name and SSL certificate instead of the raw IP address.
 
       - name: Cleanup
         if: always()
