@@ -47,9 +47,8 @@ WORKDIR /app
 # Set environment variable for database
 ENV DATABASE_URL=$DATABASE_URL
 
-# ✅ Install ALL dependencies (including dev) for building
+# Install ALL dependencies (including dev) for building
 RUN npm ci --include=dev
-
 
 # Make the detection script executable (if it exists in the cloned repo)
 RUN if [ -f scripts/detect-and-build.sh ]; then \
@@ -65,9 +64,9 @@ RUN if [ -f scripts/detect-and-build.sh ]; then \
         echo "🔍 Detecting project type..."; \
         \
         if [ -f "yarn.lock" ]; then \
-            yarn install --frozen-lockfile --production; \
+            yarn install --frozen-lockfile; \
         elif [ -f "pnpm-lock.yaml" ]; then \
-            pnpm install --frozen-lockfile --prod; \
+            pnpm install --frozen-lockfile; \
         else \
             npm ci --include=dev; \
         fi; \
@@ -108,10 +107,11 @@ WORKDIR /app
 
 ENV DATABASE_URL=$DATABASE_URL
 
-# ✅ Copy the universal script from build context (ONLY CHANGE - ADD THIS)
+# Copy the universal script from build context
 COPY scripts/detect-and-build.sh /tmp/detect-and-build.sh
-RUN cp /tmp/detect-and-build.sh ./scripts/detect-and-build.sh 2>/dev/null || true && \
-    chmod +x ./scripts/detect-and-build.sh 2>/dev/null || true
+RUN mkdir -p scripts && \
+    cp /tmp/detect-and-build.sh scripts/detect-and-build.sh && \
+    chmod +x scripts/detect-and-build.sh
 
 # Install ALL dependencies (including dev)
 RUN npm ci --include=dev
@@ -121,7 +121,7 @@ RUN if [ -f prisma/schema.prisma ]; then \
         npx prisma generate; \
     fi
 
-# ✅ Run the universal script (ONLY CHANGE - REPLACE npm test)
+# Run the universal script
 CMD ["./scripts/detect-and-build.sh"]
 
 # -----------------------------------------------------------
@@ -139,16 +139,22 @@ WORKDIR /app
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nextjs -u 1001
 
+# Copy built application from builder
 COPY --from=builder --chown=nextjs:nodejs /app /app
 
-# ✅ Copy ONLY production dependencies and built app
+# Copy specific directories (no shell operators)
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next 2>/dev/null || true
-COPY --from=builder --chown=nextjs:nodejs /app/dist ./dist 2>/dev/null || true
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 
+# Copy optional files using RUN with conditionals
+RUN if [ -d "/app/dist" ]; then cp -r /app/dist ./dist; fi
+RUN if [ -f "/app/prisma.config.ts" ]; then cp /app/prisma.config.ts ./prisma.config.ts; fi
+RUN if [ -f "/app/next.config.js" ]; then cp /app/next.config.js ./next.config.js; fi
+RUN if [ -d "/app/scripts" ]; then cp -r /app/scripts ./scripts; fi
 
+# Make scripts executable
 RUN if [ -f scripts/detect-and-build.sh ]; then \
         chmod +x scripts/detect-and-build.sh; \
     fi && \
