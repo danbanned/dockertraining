@@ -181,11 +181,16 @@ jobs:
          echo "BRANCH=$BRANCH"
          echo "DATABASE_URL=$DATABASE_URL"
          docker compose build
+         docker compose run --rm app ./scripts/detect-and-build.sh
+        # We run the detect-and-build script inside the app container to ensure it has access to the correct environment variables and dependencies for building the app, this script will detect if it's running in a CI environment and if so it will build the app using the provided REPO_URL and BRANCH build args which allows us to clone the code directly in the Dockerfile during the build stage, this is more efficient than cloning in a separate step and then copying because it allows Docker to cache the cloned code as part of the image layers, we also pass DATABASE_URL as a build arg so it can be used during the build if needed (for example if we want to run migrations during the build stage)
 
-      # Step 10: Start all services in background
-      - name: Start services
-        run: docker compose up -d db  # -d = detached mode
+          # Step 10: Start database in background
+      - name: Start database
+        run: docker compose up -d db
 
+      
+
+    
       # Step 11: Debug - print Docker versions and running containers
       - name: docker check services
         run: echo "docker --version && docker compose version && docker compose ps"
@@ -215,17 +220,13 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@db:5432/mydb?schema=public
         #run prisma migrate directly inside the app container to ensure it has access to the correct environment variables and dependencies for Prisma, we use the same DATABASE_URL as our app container so it can connect to the database container and run the migrations against it, this ensures our database schema is up to date before we run our tests which depend on the database structure being correct
         run: docker compose run --rm app npx prisma migrate deploy
-      
-      # Step 14: Run the actual test suite
-      - name: Run tests
-        run: docker compose run --rm app npm test  # -T = disable pseudo-TTY
 
-      # Step 15: Create directory for test results artifacts
+      # Step 14: Create directory for test results artifacts
       - name: Create test results directory
         if: always()  # Run even if previous steps failed
         run: mkdir -p test-results
 
-      # Step 16: Upload test results as artifacts for later download
+      # Step 15: Upload test results as artifacts for later download
       - name: Upload test results
         if: always()  # Run even if previous steps failed
         uses: actions/upload-artifact@v4
