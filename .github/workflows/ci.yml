@@ -337,18 +337,20 @@ jobs:
           echo "Files in current directory:"
           ls -la
 
+          
+           # Try current repository first
+          REPO_URL="https://github.com/${{ github.repository }}.git"
+          echo "Using current repository: $REPO_URL"
+          
+          # If that fails or you want to override, check for secret
           if [ -n "${{ secrets.REPO_URL }}" ]; then
             REPO_URL="${{ secrets.REPO_URL }}"
-            echo "Using repository from secrets: $REPO_URL"
-          else
-            REPO_URL="https://github.com/${{ github.repository }}.git"
-            echo "Using current repository: $REPO_URL"
+            echo "⚠️ Overriding with repository from secrets: $REPO_URL"
           fi
 
-          BRANCH="${{ github.ref_name }}"
-
-          echo "Building with REPO_URL: $REPO_URL"
-          echo "Building with BRANCH: $BRANCH"
+                  BRANCH="${{ github.ref_name }}"
+                  echo "Building with REPO_URL: $REPO_URL"
+                  echo "Building with BRANCH: $BRANCH"
                 
           # Build the Docker image using Buildx with caching, platform specification and 2 tags
           # (one with the commit SHA and one with "latest" for easy reference)

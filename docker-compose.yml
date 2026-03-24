@@ -35,7 +35,6 @@ services: #is what holds our containers
 
     build: 
       context: .
-      target: test  # This builds the TEST stage, not production
       args:
         - REPO_URL=${REPO_URL}
         - BRANCH=${BRANCH}
