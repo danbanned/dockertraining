@@ -433,7 +433,7 @@ jobs:
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           
-          # Write the private key - the secret will be masked in logs
+          # Write the private key
           printf '%s\n' "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
           
           # Remove any Windows line endings if present
@@ -452,44 +452,6 @@ jobs:
           fi
           
           echo "✅ SSH key validated successfully"
-
-      # DEBUG STEP 1: Verify DATABASE_URL on local runner
-      - name: DEBUG - Verify DATABASE_URL on local runner
-        env:
-          DB_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          echo "=== Local DATABASE_URL Debug ==="
-          echo "DATABASE_URL length: ${#DB_URL}"
-          echo "DATABASE_URL first 20 chars: ${DB_URL:0:20}"
-          echo "DATABASE_URL contains 'postgresql': $(echo $DB_URL | grep -c postgresql || echo '0')"
-          echo "DATABASE_URL contains 'neon': $(echo $DB_URL | grep -c neon || echo '0')"
-          if [[ "$DB_URL" == postgresql://* ]]; then
-            echo "✅ URL format is correct on local runner"
-          else
-            echo "❌ URL format is INCORRECT on local runner"
-            echo "Current start: ${DB_URL:0:20}"
-            exit 1
-          fi
-
-      # DEBUG STEP 2: Test passing DATABASE_URL through SSH
-      - name: DEBUG - Test DATABASE_URL through SSH
-        run: |
-          SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
-          echo "=== Testing DATABASE_URL transmission through SSH ==="
-          
-          # Test with echo
-          ssh $SSH_USER@$EC2_HOST "
-            echo 'Remote test 1 - Direct echo:'
-            echo '${{ secrets.DATABASE_URL }}' | cut -c1-30
-          "
-          
-          # Test with variable
-          ssh $SSH_USER@$EC2_HOST "
-            DB_URL='${{ secrets.DATABASE_URL }}'
-            echo 'Remote test 2 - Variable:'
-            echo \"\$DB_URL\" | cut -c1-30
-            echo \"Length: \${#DB_URL}\"
-          "
 
       - name: Determine correct SSH user
         id: ssh-user
@@ -566,6 +528,72 @@ jobs:
           echo "Testing SSH connection with user: $SSH_USER"
           ssh -o StrictHostKeyChecking=no -o ConnectTimeout=30 $SSH_USER@$EC2_HOST "echo 'SSH connection successful'"
 
+      # DEBUG STEP 1: Clean and verify DATABASE_URL
+      - name: DEBUG - Clean and verify DATABASE_URL
+        id: clean-url
+        env:
+          DB_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          echo "=== Original DATABASE_URL ==="
+          echo "Length: ${#DB_URL}"
+          echo "First 20 chars: ${DB_URL:0:20}"
+          echo "Last 20 chars: ${DB_URL: -20}"
+          echo ""
+          
+          # Remove surrounding quotes
+          CLEANED_URL=$(echo "$DB_URL" | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'$//")
+          
+          echo "=== Cleaned DATABASE_URL ==="
+          echo "Length: ${#CLEANED_URL}"
+          echo "First 20 chars: ${CLEANED_URL:0:20}"
+          echo "Contains 'postgresql': $(echo $CLEANED_URL | grep -c postgresql || echo '0')"
+          echo "Contains 'neon': $(echo $CLEANED_URL | grep -c neon || echo '0')"
+          echo "Contains '?sslmode': $(echo $CLEANED_URL | grep -c '?sslmode' || echo '0')"
+          
+          echo "CLEANED_URL=$CLEANED_URL" >> $GITHUB_OUTPUT
+          
+          if [[ "$CLEANED_URL" == postgresql://* ]]; then
+            echo "✅ URL format is correct after cleaning"
+          else
+            echo "❌ URL format is still INCORRECT after cleaning"
+            exit 1
+          fi
+
+      # DEBUG STEP 2: Test DATABASE_URL through SSH
+      - name: DEBUG - Test DATABASE_URL through SSH
+        run: |
+          SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
+          CLEANED_URL="${{ steps.clean-url.outputs.CLEANED_URL }}"
+          
+          echo "=== Testing DATABASE_URL transmission through SSH ==="
+          echo "SSH_USER: $SSH_USER"
+          echo "EC2_HOST: $EC2_HOST"
+          echo "Cleaned URL length: ${#CLEANED_URL}"
+          
+          # Test with echo
+          ssh $SSH_USER@$EC2_HOST "
+            echo 'Remote test 1 - Direct echo:'
+            echo '$CLEANED_URL' | cut -c1-30
+          "
+
+      # DEBUG STEP 3: Save DATABASE_URL to remote file
+      - name: DEBUG - Save DATABASE_URL to remote file
+        run: |
+          SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
+          CLEANED_URL="${{ steps.clean-url.outputs.CLEANED_URL }}"
+          
+          echo "=== Saving DATABASE_URL to remote file ==="
+          echo "$CLEANED_URL" | ssh $SSH_USER@$EC2_HOST "cat > /tmp/db_url.txt"
+          
+          # Verify it was saved correctly
+          ssh $SSH_USER@$EC2_HOST "
+            echo 'Remote file contents (first 30 chars):'
+            cat /tmp/db_url.txt | cut -c1-30
+            echo ''
+            echo 'File length:'
+            wc -c /tmp/db_url.txt
+          "
+
       - name: Install Docker and Docker Compose on EC2
         run: |
           SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
@@ -600,6 +628,7 @@ jobs:
       - name: Create Docker Compose files for blue-green deployment
         run: |
           SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
+          CLEANED_URL="${{ steps.clean-url.outputs.CLEANED_URL }}"
           
           ssh $SSH_USER@$EC2_HOST "
           tee ~/app/docker-compose.blue.yml > /dev/null << 'EOF_BLUE'
@@ -613,7 +642,7 @@ jobs:
                 - '${{ env.BLUE_PORT }}:3000'
               environment:
                 - NODE_ENV=${{ env.NODE_ENV }}
-                - DATABASE_URL=${{ secrets.DATABASE_URL }}
+                - DATABASE_URL=$CLEANED_URL
                 - JWT_SECRET=${{ secrets.JWT_SECRET }}
               networks:
                 - app-network
@@ -639,7 +668,7 @@ jobs:
                 - '${{ env.GREEN_PORT }}:3000'
               environment:
                 - NODE_ENV=${{ env.NODE_ENV }}
-                - DATABASE_URL=${{ secrets.DATABASE_URL }}
+                - DATABASE_URL=$CLEANED_URL
                 - JWT_SECRET=${{ secrets.JWT_SECRET }}
               networks:
                 - app-network
@@ -665,7 +694,7 @@ jobs:
                 - '80:3000'
               environment:
                 - NODE_ENV=${{ env.NODE_ENV }}
-                - DATABASE_URL=${{ secrets.DATABASE_URL }}
+                - DATABASE_URL=$CLEANED_URL
                 - JWT_SECRET=${{ secrets.JWT_SECRET }}
               networks:
                 - app-network
@@ -708,36 +737,16 @@ jobs:
           EOF_NGINX
           "
 
-      # DEBUG STEP 3: Create a file with the URL on remote server
-      - name: DEBUG - Save DATABASE_URL to remote file
-        env:
-          DB_URL: ${{ secrets.DATABASE_URL }}
-        run: |
-          SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
-          echo "=== Saving DATABASE_URL to remote file ==="
-          echo "$DB_URL" | ssh $SSH_USER@$EC2_HOST "cat > /tmp/db_url.txt"
-          
-          # Verify it was saved correctly
-          ssh $SSH_USER@$EC2_HOST "
-            echo 'Remote file contents (first 30 chars):'
-            cat /tmp/db_url.txt | cut -c1-30
-            echo ''
-            echo 'File length:'
-            wc -c /tmp/db_url.txt
-          "
-
       - name: Blue-Green Deployment with Docker Compose
-        env:
-          DB_URL: ${{ secrets.DATABASE_URL }}
         run: |
           SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
+          CLEANED_URL="${{ steps.clean-url.outputs.CLEANED_URL }}"
           
-          # Read the URL from the file on the remote server
-          ssh $SSH_USER@$EC2_HOST bash << 'EOF'
+          ssh $SSH_USER@$EC2_HOST bash << EOF
             set -e
             
-            # Read the URL from the file we saved
-            DB_URL=$(cat /tmp/db_url.txt)
+            # Use the cleaned URL directly
+            DB_URL="$CLEANED_URL"
             
             echo '🔑 Logging into GHCR...'
             echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
@@ -747,18 +756,18 @@ jobs:
             
             echo '=== Checking DATABASE_URL format ==='
             echo "DATABASE_URL is set to:"
-            echo "$DB_URL" | sed 's/:\/\/.*@/:\/\/***@/'
+            echo "\$DB_URL" | sed 's/:\/\/.*@/:\/\/***@/'
             echo ''
-            echo "First 20 chars: ${DB_URL:0:20}"
+            echo "First 20 chars: \${DB_URL:0:20}"
             echo ''
             echo 'Checking if DATABASE_URL starts correctly:'
-            case "$DB_URL" in
+            case "\$DB_URL" in
               postgresql://*)
                 echo '✅ DATABASE_URL starts with postgresql://'
                 ;;
               *)
                 echo '❌ DATABASE_URL does NOT start with postgresql://'
-                echo "First 20 chars: ${DB_URL:0:20}"
+                echo "First 20 chars: \${DB_URL:0:20}"
                 exit 1
                 ;;
             esac
@@ -766,19 +775,19 @@ jobs:
             echo '🗄️ Running database migrations...'
             docker run --rm \
               --network host \
-              -e DATABASE_URL="$DB_URL" \
+              -e DATABASE_URL="\$DB_URL" \
               ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }} \
               npx prisma migrate deploy
             
             if [ -f ~/app/active.txt ]; then
-              ACTIVE=$(cat ~/app/active.txt)
+              ACTIVE=\$(cat ~/app/active.txt)
             else
               ACTIVE="green"
             fi
             
-            echo "🔄 Current active environment: $ACTIVE"
+            echo "🔄 Current active environment: \$ACTIVE"
             
-            if [ "$ACTIVE" = "blue" ]; then
+            if [ "\$ACTIVE" = "blue" ]; then
               NEW_ENV="green"
               NEW_PORT="${{ env.GREEN_PORT }}"
               NEW_COMPOSE="docker-compose.green.yml"
@@ -788,34 +797,34 @@ jobs:
               NEW_COMPOSE="docker-compose.blue.yml"
             fi
             
-            echo "🚀 Deploying new version to $NEW_ENV environment..."
+            echo "🚀 Deploying new version to \$NEW_ENV environment..."
             
-            sed -i "s|image: .*|image: ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}|" ~/app/$NEW_COMPOSE
+            sed -i "s|image: .*|image: ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}|" ~/app/\$NEW_COMPOSE
             
             cd ~/app
-            docker-compose -f $NEW_COMPOSE up -d
+            docker-compose -f \$NEW_COMPOSE up -d
             
             echo "⏳ Waiting for new container to be ready..."
             sleep 15
             
-            echo "🏥 Performing health check on port $NEW_PORT..."
+            echo "🏥 Performing health check on port \$NEW_PORT..."
             HEALTHY=false
             for i in {1..30}; do
-              if curl -f http://localhost:$NEW_PORT/health; then
+              if curl -f http://localhost:\$NEW_PORT/health; then
                 HEALTHY=true
-                echo "✅ Health check passed for $NEW_ENV environment"
+                echo "✅ Health check passed for \$NEW_ENV environment"
                 break
               fi
-              echo "Waiting for health check... attempt $i/30"
+              echo "Waiting for health check... attempt \$i/30"
               sleep 2
             done
             
-            if [ "$HEALTHY" = true ]; then
+            if [ "\$HEALTHY" = true ]; then
               echo "✅ New deployment healthy, switching traffic..."
               
               sed -i "s|image: .*|image: ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }}|" ~/app/docker-compose.prod.yml
               
-              if [ "$ACTIVE" = "blue" ]; then
+              if [ "\$ACTIVE" = "blue" ]; then
                 OLD_ENV="green"
                 OLD_COMPOSE="docker-compose.green.yml"
               else
@@ -823,27 +832,25 @@ jobs:
                 OLD_COMPOSE="docker-compose.blue.yml"
               fi
               
-              echo "$NEW_ENV" > ~/app/active.txt
+              echo "\$NEW_ENV" > ~/app/active.txt
               
-              echo "🛑 Stopping old $OLD_ENV environment..."
+              echo "🛑 Stopping old \$OLD_ENV environment..."
               cd ~/app
-              docker-compose -f $OLD_COMPOSE down || true
+              docker-compose -f \$OLD_COMPOSE down || true
               
               echo "✅ Blue-green deployment completed successfully!"
-              echo "📝 Active environment: $NEW_ENV"
+              echo "📝 Active environment: \$NEW_ENV"
             else
-              echo "❌ Health check failed for $NEW_ENV environment"
+              echo "❌ Health check failed for \$NEW_ENV environment"
               echo "🔄 Rolling back..."
               
               cd ~/app
-              docker-compose -f $NEW_COMPOSE down
+              docker-compose -f \$NEW_COMPOSE down
               
               echo "❌ Deployment failed - rolled back to previous version"
               exit 1
             fi
             
-            # Clean up
-            rm -f /tmp/db_url.txt
             docker image prune -a --filter 'until=24h' -f
           EOF
 
@@ -870,7 +877,6 @@ jobs:
          
           curl -f http://$EC2_HOST/health && echo "✅ Health check passed at http://$EC2_HOST/health" || echo "⚠️ Health check endpoint not available"
           echo "✅ Deployed at http://$EC2_HOST"
-          # Note: In a real deployment, you would want to use a domain name and SSL certificate instead of the raw IP address.
 
       - name: Cleanup
         if: always()
