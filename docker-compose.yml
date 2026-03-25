@@ -62,7 +62,8 @@ services: #is what holds our containers
       # wget --spider checks if the URL is reachable without downloading content.
       # -q makes it quiet (no output).
       # If http://localhost:3000 responds successfully, the container is marked healthy.
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000"]
+       # TCP port check - checks if port 3000 is accepting connections
+      test: ["CMD", "sh", "-c", "nc -z localhost 3000 || exit 1"]
 
       # How often Docker runs the health check.
       # Every 10 seconds, Docker will execute the test command.

@@ -60,6 +60,10 @@ RUN npm ci --retry 5 --fetch-retries=5 --fetch-timeout=60000
 FROM node:20-alpine AS builder
 
 
+RUN apk add --no-cache git bash curl dos2unix netcat-openbsd
+
+
+
 WORKDIR /app
 
 
@@ -135,6 +139,10 @@ RUN npm run build
 
 # production stage
 FROM node:20-alpine AS runner
+
+# Install netcat (nc) for health checks
+RUN apk add --no-cache dumb-init curl bash dos2unix netcat-openbsd
+
 
 
 # Install bash, dumb-init, curl for health checks

@@ -628,9 +628,9 @@ jobs:
       - name: Create Docker Compose files for blue-green deployment
         run: |
           SSH_USER="${{ steps.ssh-user.outputs.SSH_USER }}"
-          CLEANED_URL="${{ steps.clean-url.outputs.CLEANED_URL }}"
           
           ssh $SSH_USER@$EC2_HOST "
+          # Create blue docker-compose file
           tee ~/app/docker-compose.blue.yml > /dev/null << 'EOF_BLUE'
           version: '3.8'
           services:
@@ -642,21 +642,22 @@ jobs:
                 - '${{ env.BLUE_PORT }}:3000'
               environment:
                 - NODE_ENV=${{ env.NODE_ENV }}
-                - DATABASE_URL=$CLEANED_URL
+                - DATABASE_URL=${{ secrets.DATABASE_URL }}
                 - JWT_SECRET=${{ secrets.JWT_SECRET }}
               networks:
                 - app-network
               healthcheck:
-                test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
-                interval: 30s
-                timeout: 10s
-                retries: 3
-                start_period: 40s
+                test: [\"CMD\", \"sh\", \"-c\", \"nc -z localhost 3000 || exit 1\"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+                start_period: 10s
           networks:
             app-network:
               driver: bridge
           EOF_BLUE
 
+          # Create green docker-compose file
           tee ~/app/docker-compose.green.yml > /dev/null << 'EOF_GREEN'
           version: '3.8'
           services:
@@ -668,21 +669,22 @@ jobs:
                 - '${{ env.GREEN_PORT }}:3000'
               environment:
                 - NODE_ENV=${{ env.NODE_ENV }}
-                - DATABASE_URL=$CLEANED_URL
+                - DATABASE_URL=${{ secrets.DATABASE_URL }}
                 - JWT_SECRET=${{ secrets.JWT_SECRET }}
               networks:
                 - app-network
               healthcheck:
-                test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
-                interval: 30s
-                timeout: 10s
-                retries: 3
-                start_period: 40s
+                test: [\"CMD\", \"sh\", \"-c\", \"nc -z localhost 3000 || exit 1\"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+                start_period: 10s
           networks:
             app-network:
               driver: bridge
           EOF_GREEN
 
+          # Create production docker-compose file
           tee ~/app/docker-compose.prod.yml > /dev/null << 'EOF_PROD'
           version: '3.8'
           services:
@@ -694,21 +696,22 @@ jobs:
                 - '80:3000'
               environment:
                 - NODE_ENV=${{ env.NODE_ENV }}
-                - DATABASE_URL=$CLEANED_URL
+                - DATABASE_URL=${{ secrets.DATABASE_URL }}
                 - JWT_SECRET=${{ secrets.JWT_SECRET }}
               networks:
                 - app-network
               healthcheck:
-                test: ['CMD', 'curl', '-f', 'http://localhost:3000/health']
-                interval: 30s
-                timeout: 10s
-                retries: 3
-                start_period: 40s
+                test: [\"CMD\", \"sh\", \"-c\", \"nc -z localhost 3000 || exit 1\"]
+                interval: 10s
+                timeout: 5s
+                retries: 5
+                start_period: 10s
           networks:
             app-network:
               driver: bridge
           EOF_PROD
 
+          # Create nginx config
           tee ~/app/nginx.conf > /dev/null << 'EOF_NGINX'
           events {
               worker_connections 1024;
