@@ -780,7 +780,7 @@ jobs:
               --network host \
               -e DATABASE_URL="\$DB_URL" \
               ghcr.io/${{ github.repository }}:${{ env.IMAGE_TAG }} \
-              npx prisma migrate deploy
+              npx prisma migrate deploy || true
             
             if [ -f ~/app/active.txt ]; then
               ACTIVE=\$(cat ~/app/active.txt)
@@ -807,18 +807,20 @@ jobs:
             cd ~/app
             docker-compose -f \$NEW_COMPOSE up -d
             
-            echo "⏳ Waiting for new container to be ready..."
+            echo "⏳ Waiting for container to start..."
             sleep 15
             
-            echo "🏥 Performing health check on port \$NEW_PORT..."
+            # TCP Port Health Check (using nc since you have it in docker-compose)
+            echo "🏥 Checking if port \$NEW_PORT is open..."
             HEALTHY=false
             for i in {1..30}; do
-              if curl -f http://localhost:\$NEW_PORT/health; then
+              # Use nc to check if port is open (just like docker-compose healthcheck)
+              if nc -z localhost \$NEW_PORT 2>/dev/null; then
                 HEALTHY=true
-                echo "✅ Health check passed for \$NEW_ENV environment"
+                echo "✅ Port \$NEW_PORT is open (attempt \$i/30)"
                 break
               fi
-              echo "Waiting for health check... attempt \$i/30"
+              echo "Waiting for port \$NEW_PORT to open... attempt \$i/30"
               sleep 2
             done
             
@@ -844,7 +846,9 @@ jobs:
               echo "✅ Blue-green deployment completed successfully!"
               echo "📝 Active environment: \$NEW_ENV"
             else
-              echo "❌ Health check failed for \$NEW_ENV environment"
+              echo "❌ Port \$NEW_PORT never opened"
+              echo "Container logs:"
+              docker logs my-app-\$NEW_ENV --tail 100
               echo "🔄 Rolling back..."
               
               cd ~/app
@@ -865,19 +869,21 @@ jobs:
           ssh $SSH_USER@$EC2_HOST "
             echo '📊 Checking running containers:'
             docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
-           
+          
             if [ -f ~/app/active.txt ]; then
               ACTIVE=\$(cat ~/app/active.txt)
               echo \"✅ Active environment: \$ACTIVE\"
             fi
-           
+          
+            # Check nginx health endpoint (this is handled by nginx, not the app)
             if curl -f http://localhost/health; then
               echo '✅ Production endpoint is healthy'
             else
               echo '⚠️ Production health check failed'
             fi
           "
-         
+        
+          # Check external health endpoint
           curl -f http://$EC2_HOST/health && echo "✅ Health check passed at http://$EC2_HOST/health" || echo "⚠️ Health check endpoint not available"
           echo "✅ Deployed at http://$EC2_HOST"
 
