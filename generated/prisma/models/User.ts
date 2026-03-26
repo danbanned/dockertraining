@@ -9,8 +9,8 @@
  * 🟢 You can import this file directly.
  */
 import type * as runtime from "@prisma/client/runtime/client"
-import type * as $Enums from "../enums.ts"
-import type * as Prisma from "../internal/prismaNamespace.ts"
+import type * as $Enums from "../enums.js"
+import type * as Prisma from "../internal/prismaNamespace.js"
 
 /**
  * Model User
@@ -20,64 +20,104 @@ export type UserModel = runtime.Types.Result.DefaultSelection<Prisma.$UserPayloa
 
 export type AggregateUser = {
   _count: UserCountAggregateOutputType | null
+  _avg: UserAvgAggregateOutputType | null
+  _sum: UserSumAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
 }
 
+export type UserAvgAggregateOutputType = {
+  id: number | null
+  incomeGoal: runtime.Decimal | null
+}
+
+export type UserSumAggregateOutputType = {
+  id: number | null
+  incomeGoal: runtime.Decimal | null
+}
+
 export type UserMinAggregateOutputType = {
-  id: string | null
+  id: number | null
   email: string | null
-  name: string | null
-  role: $Enums.Role | null
+  passwordHash: string | null
+  career: string | null
+  incomeGoal: runtime.Decimal | null
+  cityGoal: string | null
+  fitnessGoal: string | null
+  communicationGoal: string | null
   createdAt: Date | null
-  updatedAt: Date | null
 }
 
 export type UserMaxAggregateOutputType = {
-  id: string | null
+  id: number | null
   email: string | null
-  name: string | null
-  role: $Enums.Role | null
+  passwordHash: string | null
+  career: string | null
+  incomeGoal: runtime.Decimal | null
+  cityGoal: string | null
+  fitnessGoal: string | null
+  communicationGoal: string | null
   createdAt: Date | null
-  updatedAt: Date | null
 }
 
 export type UserCountAggregateOutputType = {
   id: number
   email: number
-  name: number
-  role: number
+  passwordHash: number
+  career: number
+  incomeGoal: number
+  cityGoal: number
+  fitnessGoal: number
+  communicationGoal: number
   createdAt: number
-  updatedAt: number
   _all: number
 }
 
 
+export type UserAvgAggregateInputType = {
+  id?: true
+  incomeGoal?: true
+}
+
+export type UserSumAggregateInputType = {
+  id?: true
+  incomeGoal?: true
+}
+
 export type UserMinAggregateInputType = {
   id?: true
   email?: true
-  name?: true
-  role?: true
+  passwordHash?: true
+  career?: true
+  incomeGoal?: true
+  cityGoal?: true
+  fitnessGoal?: true
+  communicationGoal?: true
   createdAt?: true
-  updatedAt?: true
 }
 
 export type UserMaxAggregateInputType = {
   id?: true
   email?: true
-  name?: true
-  role?: true
+  passwordHash?: true
+  career?: true
+  incomeGoal?: true
+  cityGoal?: true
+  fitnessGoal?: true
+  communicationGoal?: true
   createdAt?: true
-  updatedAt?: true
 }
 
 export type UserCountAggregateInputType = {
   id?: true
   email?: true
-  name?: true
-  role?: true
+  passwordHash?: true
+  career?: true
+  incomeGoal?: true
+  cityGoal?: true
+  fitnessGoal?: true
+  communicationGoal?: true
   createdAt?: true
-  updatedAt?: true
   _all?: true
 }
 
@@ -119,6 +159,18 @@ export type UserAggregateArgs<ExtArgs extends runtime.Types.Extensions.InternalA
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: UserAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: UserSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: UserMinAggregateInputType
@@ -149,18 +201,25 @@ export type UserGroupByArgs<ExtArgs extends runtime.Types.Extensions.InternalArg
   take?: number
   skip?: number
   _count?: UserCountAggregateInputType | true
+  _avg?: UserAvgAggregateInputType
+  _sum?: UserSumAggregateInputType
   _min?: UserMinAggregateInputType
   _max?: UserMaxAggregateInputType
 }
 
 export type UserGroupByOutputType = {
-  id: string
+  id: number
   email: string
-  name: string | null
-  role: $Enums.Role
+  passwordHash: string
+  career: string | null
+  incomeGoal: runtime.Decimal | null
+  cityGoal: string | null
+  fitnessGoal: string | null
+  communicationGoal: string | null
   createdAt: Date
-  updatedAt: Date
   _count: UserCountAggregateOutputType | null
+  _avg: UserAvgAggregateOutputType | null
+  _sum: UserSumAggregateOutputType | null
   _min: UserMinAggregateOutputType | null
   _max: UserMaxAggregateOutputType | null
 }
@@ -184,154 +243,250 @@ export type UserWhereInput = {
   AND?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
   OR?: Prisma.UserWhereInput[]
   NOT?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
-  id?: Prisma.StringFilter<"User"> | string
+  id?: Prisma.IntFilter<"User"> | number
   email?: Prisma.StringFilter<"User"> | string
-  name?: Prisma.StringNullableFilter<"User"> | string | null
-  role?: Prisma.EnumRoleFilter<"User"> | $Enums.Role
+  passwordHash?: Prisma.StringFilter<"User"> | string
+  career?: Prisma.StringNullableFilter<"User"> | string | null
+  incomeGoal?: Prisma.DecimalNullableFilter<"User"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.StringNullableFilter<"User"> | string | null
+  fitnessGoal?: Prisma.StringNullableFilter<"User"> | string | null
+  communicationGoal?: Prisma.StringNullableFilter<"User"> | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
-  updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
-  posts?: Prisma.PostListRelationFilter
+  goals?: Prisma.GoalListRelationFilter
+  careerPaths?: Prisma.CareerPathListRelationFilter
+  roadmaps?: Prisma.RoadmapListRelationFilter
+  dailyTasks?: Prisma.DailyTaskListRelationFilter
+  jobApplications?: Prisma.JobApplicationListRelationFilter
+  progressMetrics?: Prisma.ProgressMetricListRelationFilter
+  aiLogs?: Prisma.AILogListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   email?: Prisma.SortOrder
-  name?: Prisma.SortOrderInput | Prisma.SortOrder
-  role?: Prisma.SortOrder
+  passwordHash?: Prisma.SortOrder
+  career?: Prisma.SortOrderInput | Prisma.SortOrder
+  incomeGoal?: Prisma.SortOrderInput | Prisma.SortOrder
+  cityGoal?: Prisma.SortOrderInput | Prisma.SortOrder
+  fitnessGoal?: Prisma.SortOrderInput | Prisma.SortOrder
+  communicationGoal?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
-  updatedAt?: Prisma.SortOrder
-  posts?: Prisma.PostOrderByRelationAggregateInput
+  goals?: Prisma.GoalOrderByRelationAggregateInput
+  careerPaths?: Prisma.CareerPathOrderByRelationAggregateInput
+  roadmaps?: Prisma.RoadmapOrderByRelationAggregateInput
+  dailyTasks?: Prisma.DailyTaskOrderByRelationAggregateInput
+  jobApplications?: Prisma.JobApplicationOrderByRelationAggregateInput
+  progressMetrics?: Prisma.ProgressMetricOrderByRelationAggregateInput
+  aiLogs?: Prisma.AILogOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
-  id?: string
+  id?: number
   email?: string
   AND?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
   OR?: Prisma.UserWhereInput[]
   NOT?: Prisma.UserWhereInput | Prisma.UserWhereInput[]
-  name?: Prisma.StringNullableFilter<"User"> | string | null
-  role?: Prisma.EnumRoleFilter<"User"> | $Enums.Role
+  passwordHash?: Prisma.StringFilter<"User"> | string
+  career?: Prisma.StringNullableFilter<"User"> | string | null
+  incomeGoal?: Prisma.DecimalNullableFilter<"User"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.StringNullableFilter<"User"> | string | null
+  fitnessGoal?: Prisma.StringNullableFilter<"User"> | string | null
+  communicationGoal?: Prisma.StringNullableFilter<"User"> | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
-  updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
-  posts?: Prisma.PostListRelationFilter
+  goals?: Prisma.GoalListRelationFilter
+  careerPaths?: Prisma.CareerPathListRelationFilter
+  roadmaps?: Prisma.RoadmapListRelationFilter
+  dailyTasks?: Prisma.DailyTaskListRelationFilter
+  jobApplications?: Prisma.JobApplicationListRelationFilter
+  progressMetrics?: Prisma.ProgressMetricListRelationFilter
+  aiLogs?: Prisma.AILogListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   email?: Prisma.SortOrder
-  name?: Prisma.SortOrderInput | Prisma.SortOrder
-  role?: Prisma.SortOrder
+  passwordHash?: Prisma.SortOrder
+  career?: Prisma.SortOrderInput | Prisma.SortOrder
+  incomeGoal?: Prisma.SortOrderInput | Prisma.SortOrder
+  cityGoal?: Prisma.SortOrderInput | Prisma.SortOrder
+  fitnessGoal?: Prisma.SortOrderInput | Prisma.SortOrder
+  communicationGoal?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
-  updatedAt?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
+  _avg?: Prisma.UserAvgOrderByAggregateInput
   _max?: Prisma.UserMaxOrderByAggregateInput
   _min?: Prisma.UserMinOrderByAggregateInput
+  _sum?: Prisma.UserSumOrderByAggregateInput
 }
 
 export type UserScalarWhereWithAggregatesInput = {
   AND?: Prisma.UserScalarWhereWithAggregatesInput | Prisma.UserScalarWhereWithAggregatesInput[]
   OR?: Prisma.UserScalarWhereWithAggregatesInput[]
   NOT?: Prisma.UserScalarWhereWithAggregatesInput | Prisma.UserScalarWhereWithAggregatesInput[]
-  id?: Prisma.StringWithAggregatesFilter<"User"> | string
+  id?: Prisma.IntWithAggregatesFilter<"User"> | number
   email?: Prisma.StringWithAggregatesFilter<"User"> | string
-  name?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
-  role?: Prisma.EnumRoleWithAggregatesFilter<"User"> | $Enums.Role
+  passwordHash?: Prisma.StringWithAggregatesFilter<"User"> | string
+  career?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  incomeGoal?: Prisma.DecimalNullableWithAggregatesFilter<"User"> | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  fitnessGoal?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  communicationGoal?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
-  updatedAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
 }
 
 export type UserCreateInput = {
-  id?: string
   email: string
-  name?: string | null
-  role?: $Enums.Role
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
   createdAt?: Date | string
-  updatedAt?: Date | string
-  posts?: Prisma.PostCreateNestedManyWithoutAuthorInput
+  goals?: Prisma.GoalCreateNestedManyWithoutUserInput
+  careerPaths?: Prisma.CareerPathCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
-  id?: string
+  id?: number
   email: string
-  name?: string | null
-  role?: $Enums.Role
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
   createdAt?: Date | string
-  updatedAt?: Date | string
-  posts?: Prisma.PostUncheckedCreateNestedManyWithoutAuthorInput
+  goals?: Prisma.GoalUncheckedCreateNestedManyWithoutUserInput
+  careerPaths?: Prisma.CareerPathUncheckedCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapUncheckedCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskUncheckedCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationUncheckedCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  posts?: Prisma.PostUpdateManyWithoutAuthorNestedInput
+  goals?: Prisma.GoalUpdateManyWithoutUserNestedInput
+  careerPaths?: Prisma.CareerPathUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
+  id?: Prisma.IntFieldUpdateOperationsInput | number
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  posts?: Prisma.PostUncheckedUpdateManyWithoutAuthorNestedInput
+  goals?: Prisma.GoalUncheckedUpdateManyWithoutUserNestedInput
+  careerPaths?: Prisma.CareerPathUncheckedUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUncheckedUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUncheckedUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUncheckedUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
-  id?: string
+  id?: number
   email: string
-  name?: string | null
-  role?: $Enums.Role
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
   createdAt?: Date | string
-  updatedAt?: Date | string
 }
 
 export type UserUpdateManyMutationInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type UserUncheckedUpdateManyInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
+  id?: Prisma.IntFieldUpdateOperationsInput | number
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type UserCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   email?: Prisma.SortOrder
-  name?: Prisma.SortOrder
-  role?: Prisma.SortOrder
+  passwordHash?: Prisma.SortOrder
+  career?: Prisma.SortOrder
+  incomeGoal?: Prisma.SortOrder
+  cityGoal?: Prisma.SortOrder
+  fitnessGoal?: Prisma.SortOrder
+  communicationGoal?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
-  updatedAt?: Prisma.SortOrder
+}
+
+export type UserAvgOrderByAggregateInput = {
+  id?: Prisma.SortOrder
+  incomeGoal?: Prisma.SortOrder
 }
 
 export type UserMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   email?: Prisma.SortOrder
-  name?: Prisma.SortOrder
-  role?: Prisma.SortOrder
+  passwordHash?: Prisma.SortOrder
+  career?: Prisma.SortOrder
+  incomeGoal?: Prisma.SortOrder
+  cityGoal?: Prisma.SortOrder
+  fitnessGoal?: Prisma.SortOrder
+  communicationGoal?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
-  updatedAt?: Prisma.SortOrder
 }
 
 export type UserMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   email?: Prisma.SortOrder
-  name?: Prisma.SortOrder
-  role?: Prisma.SortOrder
+  passwordHash?: Prisma.SortOrder
+  career?: Prisma.SortOrder
+  incomeGoal?: Prisma.SortOrder
+  cityGoal?: Prisma.SortOrder
+  fitnessGoal?: Prisma.SortOrder
+  communicationGoal?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
-  updatedAt?: Prisma.SortOrder
+}
+
+export type UserSumOrderByAggregateInput = {
+  id?: Prisma.SortOrder
+  incomeGoal?: Prisma.SortOrder
 }
 
 export type UserScalarRelationFilter = {
@@ -347,78 +502,724 @@ export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
 }
 
-export type EnumRoleFieldUpdateOperationsInput = {
-  set?: $Enums.Role
+export type NullableDecimalFieldUpdateOperationsInput = {
+  set?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  increment?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  decrement?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  multiply?: runtime.Decimal | runtime.DecimalJsLike | number | string
+  divide?: runtime.Decimal | runtime.DecimalJsLike | number | string
 }
 
 export type DateTimeFieldUpdateOperationsInput = {
   set?: Date | string
 }
 
-export type UserCreateNestedOneWithoutPostsInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutPostsInput, Prisma.UserUncheckedCreateWithoutPostsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutPostsInput
+export type IntFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
+export type UserCreateNestedOneWithoutGoalsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutGoalsInput, Prisma.UserUncheckedCreateWithoutGoalsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutGoalsInput
   connect?: Prisma.UserWhereUniqueInput
 }
 
-export type UserUpdateOneRequiredWithoutPostsNestedInput = {
-  create?: Prisma.XOR<Prisma.UserCreateWithoutPostsInput, Prisma.UserUncheckedCreateWithoutPostsInput>
-  connectOrCreate?: Prisma.UserCreateOrConnectWithoutPostsInput
-  upsert?: Prisma.UserUpsertWithoutPostsInput
+export type UserUpdateOneRequiredWithoutGoalsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutGoalsInput, Prisma.UserUncheckedCreateWithoutGoalsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutGoalsInput
+  upsert?: Prisma.UserUpsertWithoutGoalsInput
   connect?: Prisma.UserWhereUniqueInput
-  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutPostsInput, Prisma.UserUpdateWithoutPostsInput>, Prisma.UserUncheckedUpdateWithoutPostsInput>
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutGoalsInput, Prisma.UserUpdateWithoutGoalsInput>, Prisma.UserUncheckedUpdateWithoutGoalsInput>
 }
 
-export type UserCreateWithoutPostsInput = {
-  id?: string
+export type UserCreateNestedOneWithoutCareerPathsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutCareerPathsInput, Prisma.UserUncheckedCreateWithoutCareerPathsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCareerPathsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutCareerPathsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutCareerPathsInput, Prisma.UserUncheckedCreateWithoutCareerPathsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutCareerPathsInput
+  upsert?: Prisma.UserUpsertWithoutCareerPathsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutCareerPathsInput, Prisma.UserUpdateWithoutCareerPathsInput>, Prisma.UserUncheckedUpdateWithoutCareerPathsInput>
+}
+
+export type UserCreateNestedOneWithoutRoadmapsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutRoadmapsInput, Prisma.UserUncheckedCreateWithoutRoadmapsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutRoadmapsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutRoadmapsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutRoadmapsInput, Prisma.UserUncheckedCreateWithoutRoadmapsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutRoadmapsInput
+  upsert?: Prisma.UserUpsertWithoutRoadmapsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutRoadmapsInput, Prisma.UserUpdateWithoutRoadmapsInput>, Prisma.UserUncheckedUpdateWithoutRoadmapsInput>
+}
+
+export type UserCreateNestedOneWithoutDailyTasksInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutDailyTasksInput, Prisma.UserUncheckedCreateWithoutDailyTasksInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutDailyTasksInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutDailyTasksNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutDailyTasksInput, Prisma.UserUncheckedCreateWithoutDailyTasksInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutDailyTasksInput
+  upsert?: Prisma.UserUpsertWithoutDailyTasksInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutDailyTasksInput, Prisma.UserUpdateWithoutDailyTasksInput>, Prisma.UserUncheckedUpdateWithoutDailyTasksInput>
+}
+
+export type UserCreateNestedOneWithoutJobApplicationsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutJobApplicationsInput, Prisma.UserUncheckedCreateWithoutJobApplicationsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutJobApplicationsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutJobApplicationsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutJobApplicationsInput, Prisma.UserUncheckedCreateWithoutJobApplicationsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutJobApplicationsInput
+  upsert?: Prisma.UserUpsertWithoutJobApplicationsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutJobApplicationsInput, Prisma.UserUpdateWithoutJobApplicationsInput>, Prisma.UserUncheckedUpdateWithoutJobApplicationsInput>
+}
+
+export type UserCreateNestedOneWithoutProgressMetricsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutProgressMetricsInput, Prisma.UserUncheckedCreateWithoutProgressMetricsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutProgressMetricsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutProgressMetricsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutProgressMetricsInput, Prisma.UserUncheckedCreateWithoutProgressMetricsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutProgressMetricsInput
+  upsert?: Prisma.UserUpsertWithoutProgressMetricsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutProgressMetricsInput, Prisma.UserUpdateWithoutProgressMetricsInput>, Prisma.UserUncheckedUpdateWithoutProgressMetricsInput>
+}
+
+export type UserCreateNestedOneWithoutAiLogsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAiLogsInput, Prisma.UserUncheckedCreateWithoutAiLogsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAiLogsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutAiLogsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAiLogsInput, Prisma.UserUncheckedCreateWithoutAiLogsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAiLogsInput
+  upsert?: Prisma.UserUpsertWithoutAiLogsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAiLogsInput, Prisma.UserUpdateWithoutAiLogsInput>, Prisma.UserUncheckedUpdateWithoutAiLogsInput>
+}
+
+export type UserCreateWithoutGoalsInput = {
   email: string
-  name?: string | null
-  role?: $Enums.Role
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
   createdAt?: Date | string
-  updatedAt?: Date | string
+  careerPaths?: Prisma.CareerPathCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogCreateNestedManyWithoutUserInput
 }
 
-export type UserUncheckedCreateWithoutPostsInput = {
-  id?: string
+export type UserUncheckedCreateWithoutGoalsInput = {
+  id?: number
   email: string
-  name?: string | null
-  role?: $Enums.Role
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
   createdAt?: Date | string
-  updatedAt?: Date | string
+  careerPaths?: Prisma.CareerPathUncheckedCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapUncheckedCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskUncheckedCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationUncheckedCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogUncheckedCreateNestedManyWithoutUserInput
 }
 
-export type UserCreateOrConnectWithoutPostsInput = {
+export type UserCreateOrConnectWithoutGoalsInput = {
   where: Prisma.UserWhereUniqueInput
-  create: Prisma.XOR<Prisma.UserCreateWithoutPostsInput, Prisma.UserUncheckedCreateWithoutPostsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutGoalsInput, Prisma.UserUncheckedCreateWithoutGoalsInput>
 }
 
-export type UserUpsertWithoutPostsInput = {
-  update: Prisma.XOR<Prisma.UserUpdateWithoutPostsInput, Prisma.UserUncheckedUpdateWithoutPostsInput>
-  create: Prisma.XOR<Prisma.UserCreateWithoutPostsInput, Prisma.UserUncheckedCreateWithoutPostsInput>
+export type UserUpsertWithoutGoalsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutGoalsInput, Prisma.UserUncheckedUpdateWithoutGoalsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutGoalsInput, Prisma.UserUncheckedCreateWithoutGoalsInput>
   where?: Prisma.UserWhereInput
 }
 
-export type UserUpdateToOneWithWhereWithoutPostsInput = {
+export type UserUpdateToOneWithWhereWithoutGoalsInput = {
   where?: Prisma.UserWhereInput
-  data: Prisma.XOR<Prisma.UserUpdateWithoutPostsInput, Prisma.UserUncheckedUpdateWithoutPostsInput>
+  data: Prisma.XOR<Prisma.UserUpdateWithoutGoalsInput, Prisma.UserUncheckedUpdateWithoutGoalsInput>
 }
 
-export type UserUpdateWithoutPostsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
+export type UserUpdateWithoutGoalsInput = {
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  careerPaths?: Prisma.CareerPathUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUpdateManyWithoutUserNestedInput
 }
 
-export type UserUncheckedUpdateWithoutPostsInput = {
-  id?: Prisma.StringFieldUpdateOperationsInput | string
+export type UserUncheckedUpdateWithoutGoalsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
   email?: Prisma.StringFieldUpdateOperationsInput | string
-  name?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
-  role?: Prisma.EnumRoleFieldUpdateOperationsInput | $Enums.Role
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
-  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  careerPaths?: Prisma.CareerPathUncheckedUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUncheckedUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUncheckedUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUncheckedUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutCareerPathsInput = {
+  email: string
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
+  createdAt?: Date | string
+  goals?: Prisma.GoalCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutCareerPathsInput = {
+  id?: number
+  email: string
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
+  createdAt?: Date | string
+  goals?: Prisma.GoalUncheckedCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapUncheckedCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskUncheckedCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationUncheckedCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutCareerPathsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutCareerPathsInput, Prisma.UserUncheckedCreateWithoutCareerPathsInput>
+}
+
+export type UserUpsertWithoutCareerPathsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutCareerPathsInput, Prisma.UserUncheckedUpdateWithoutCareerPathsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutCareerPathsInput, Prisma.UserUncheckedCreateWithoutCareerPathsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutCareerPathsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutCareerPathsInput, Prisma.UserUncheckedUpdateWithoutCareerPathsInput>
+}
+
+export type UserUpdateWithoutCareerPathsInput = {
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  goals?: Prisma.GoalUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutCareerPathsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  goals?: Prisma.GoalUncheckedUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUncheckedUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUncheckedUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUncheckedUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutRoadmapsInput = {
+  email: string
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
+  createdAt?: Date | string
+  goals?: Prisma.GoalCreateNestedManyWithoutUserInput
+  careerPaths?: Prisma.CareerPathCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutRoadmapsInput = {
+  id?: number
+  email: string
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
+  createdAt?: Date | string
+  goals?: Prisma.GoalUncheckedCreateNestedManyWithoutUserInput
+  careerPaths?: Prisma.CareerPathUncheckedCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskUncheckedCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationUncheckedCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutRoadmapsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutRoadmapsInput, Prisma.UserUncheckedCreateWithoutRoadmapsInput>
+}
+
+export type UserUpsertWithoutRoadmapsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutRoadmapsInput, Prisma.UserUncheckedUpdateWithoutRoadmapsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutRoadmapsInput, Prisma.UserUncheckedCreateWithoutRoadmapsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutRoadmapsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutRoadmapsInput, Prisma.UserUncheckedUpdateWithoutRoadmapsInput>
+}
+
+export type UserUpdateWithoutRoadmapsInput = {
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  goals?: Prisma.GoalUpdateManyWithoutUserNestedInput
+  careerPaths?: Prisma.CareerPathUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutRoadmapsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  goals?: Prisma.GoalUncheckedUpdateManyWithoutUserNestedInput
+  careerPaths?: Prisma.CareerPathUncheckedUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUncheckedUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUncheckedUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutDailyTasksInput = {
+  email: string
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
+  createdAt?: Date | string
+  goals?: Prisma.GoalCreateNestedManyWithoutUserInput
+  careerPaths?: Prisma.CareerPathCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutDailyTasksInput = {
+  id?: number
+  email: string
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
+  createdAt?: Date | string
+  goals?: Prisma.GoalUncheckedCreateNestedManyWithoutUserInput
+  careerPaths?: Prisma.CareerPathUncheckedCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapUncheckedCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationUncheckedCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutDailyTasksInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutDailyTasksInput, Prisma.UserUncheckedCreateWithoutDailyTasksInput>
+}
+
+export type UserUpsertWithoutDailyTasksInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutDailyTasksInput, Prisma.UserUncheckedUpdateWithoutDailyTasksInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutDailyTasksInput, Prisma.UserUncheckedCreateWithoutDailyTasksInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutDailyTasksInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutDailyTasksInput, Prisma.UserUncheckedUpdateWithoutDailyTasksInput>
+}
+
+export type UserUpdateWithoutDailyTasksInput = {
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  goals?: Prisma.GoalUpdateManyWithoutUserNestedInput
+  careerPaths?: Prisma.CareerPathUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutDailyTasksInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  goals?: Prisma.GoalUncheckedUpdateManyWithoutUserNestedInput
+  careerPaths?: Prisma.CareerPathUncheckedUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUncheckedUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUncheckedUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutJobApplicationsInput = {
+  email: string
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
+  createdAt?: Date | string
+  goals?: Prisma.GoalCreateNestedManyWithoutUserInput
+  careerPaths?: Prisma.CareerPathCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutJobApplicationsInput = {
+  id?: number
+  email: string
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
+  createdAt?: Date | string
+  goals?: Prisma.GoalUncheckedCreateNestedManyWithoutUserInput
+  careerPaths?: Prisma.CareerPathUncheckedCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapUncheckedCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskUncheckedCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutJobApplicationsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutJobApplicationsInput, Prisma.UserUncheckedCreateWithoutJobApplicationsInput>
+}
+
+export type UserUpsertWithoutJobApplicationsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutJobApplicationsInput, Prisma.UserUncheckedUpdateWithoutJobApplicationsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutJobApplicationsInput, Prisma.UserUncheckedCreateWithoutJobApplicationsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutJobApplicationsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutJobApplicationsInput, Prisma.UserUncheckedUpdateWithoutJobApplicationsInput>
+}
+
+export type UserUpdateWithoutJobApplicationsInput = {
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  goals?: Prisma.GoalUpdateManyWithoutUserNestedInput
+  careerPaths?: Prisma.CareerPathUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutJobApplicationsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  goals?: Prisma.GoalUncheckedUpdateManyWithoutUserNestedInput
+  careerPaths?: Prisma.CareerPathUncheckedUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUncheckedUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUncheckedUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutProgressMetricsInput = {
+  email: string
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
+  createdAt?: Date | string
+  goals?: Prisma.GoalCreateNestedManyWithoutUserInput
+  careerPaths?: Prisma.CareerPathCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutProgressMetricsInput = {
+  id?: number
+  email: string
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
+  createdAt?: Date | string
+  goals?: Prisma.GoalUncheckedCreateNestedManyWithoutUserInput
+  careerPaths?: Prisma.CareerPathUncheckedCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapUncheckedCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskUncheckedCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationUncheckedCreateNestedManyWithoutUserInput
+  aiLogs?: Prisma.AILogUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutProgressMetricsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutProgressMetricsInput, Prisma.UserUncheckedCreateWithoutProgressMetricsInput>
+}
+
+export type UserUpsertWithoutProgressMetricsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutProgressMetricsInput, Prisma.UserUncheckedUpdateWithoutProgressMetricsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutProgressMetricsInput, Prisma.UserUncheckedCreateWithoutProgressMetricsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutProgressMetricsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutProgressMetricsInput, Prisma.UserUncheckedUpdateWithoutProgressMetricsInput>
+}
+
+export type UserUpdateWithoutProgressMetricsInput = {
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  goals?: Prisma.GoalUpdateManyWithoutUserNestedInput
+  careerPaths?: Prisma.CareerPathUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutProgressMetricsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  goals?: Prisma.GoalUncheckedUpdateManyWithoutUserNestedInput
+  careerPaths?: Prisma.CareerPathUncheckedUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUncheckedUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUncheckedUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUncheckedUpdateManyWithoutUserNestedInput
+  aiLogs?: Prisma.AILogUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutAiLogsInput = {
+  email: string
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
+  createdAt?: Date | string
+  goals?: Prisma.GoalCreateNestedManyWithoutUserInput
+  careerPaths?: Prisma.CareerPathCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutAiLogsInput = {
+  id?: number
+  email: string
+  passwordHash: string
+  career?: string | null
+  incomeGoal?: runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: string | null
+  fitnessGoal?: string | null
+  communicationGoal?: string | null
+  createdAt?: Date | string
+  goals?: Prisma.GoalUncheckedCreateNestedManyWithoutUserInput
+  careerPaths?: Prisma.CareerPathUncheckedCreateNestedManyWithoutUserInput
+  roadmaps?: Prisma.RoadmapUncheckedCreateNestedManyWithoutUserInput
+  dailyTasks?: Prisma.DailyTaskUncheckedCreateNestedManyWithoutUserInput
+  jobApplications?: Prisma.JobApplicationUncheckedCreateNestedManyWithoutUserInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutAiLogsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutAiLogsInput, Prisma.UserUncheckedCreateWithoutAiLogsInput>
+}
+
+export type UserUpsertWithoutAiLogsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutAiLogsInput, Prisma.UserUncheckedUpdateWithoutAiLogsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutAiLogsInput, Prisma.UserUncheckedCreateWithoutAiLogsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutAiLogsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutAiLogsInput, Prisma.UserUncheckedUpdateWithoutAiLogsInput>
+}
+
+export type UserUpdateWithoutAiLogsInput = {
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  goals?: Prisma.GoalUpdateManyWithoutUserNestedInput
+  careerPaths?: Prisma.CareerPathUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutAiLogsInput = {
+  id?: Prisma.IntFieldUpdateOperationsInput | number
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  career?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  incomeGoal?: Prisma.NullableDecimalFieldUpdateOperationsInput | runtime.Decimal | runtime.DecimalJsLike | number | string | null
+  cityGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  fitnessGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  communicationGoal?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  goals?: Prisma.GoalUncheckedUpdateManyWithoutUserNestedInput
+  careerPaths?: Prisma.CareerPathUncheckedUpdateManyWithoutUserNestedInput
+  roadmaps?: Prisma.RoadmapUncheckedUpdateManyWithoutUserNestedInput
+  dailyTasks?: Prisma.DailyTaskUncheckedUpdateManyWithoutUserNestedInput
+  jobApplications?: Prisma.JobApplicationUncheckedUpdateManyWithoutUserNestedInput
+  progressMetrics?: Prisma.ProgressMetricUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -427,11 +1228,23 @@ export type UserUncheckedUpdateWithoutPostsInput = {
  */
 
 export type UserCountOutputType = {
-  posts: number
+  goals: number
+  careerPaths: number
+  roadmaps: number
+  dailyTasks: number
+  jobApplications: number
+  progressMetrics: number
+  aiLogs: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  posts?: boolean | UserCountOutputTypeCountPostsArgs
+  goals?: boolean | UserCountOutputTypeCountGoalsArgs
+  careerPaths?: boolean | UserCountOutputTypeCountCareerPathsArgs
+  roadmaps?: boolean | UserCountOutputTypeCountRoadmapsArgs
+  dailyTasks?: boolean | UserCountOutputTypeCountDailyTasksArgs
+  jobApplications?: boolean | UserCountOutputTypeCountJobApplicationsArgs
+  progressMetrics?: boolean | UserCountOutputTypeCountProgressMetricsArgs
+  aiLogs?: boolean | UserCountOutputTypeCountAiLogsArgs
 }
 
 /**
@@ -447,52 +1260,118 @@ export type UserCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensi
 /**
  * UserCountOutputType without action
  */
-export type UserCountOutputTypeCountPostsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  where?: Prisma.PostWhereInput
+export type UserCountOutputTypeCountGoalsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.GoalWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountCareerPathsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CareerPathWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountRoadmapsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.RoadmapWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountDailyTasksArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.DailyTaskWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountJobApplicationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.JobApplicationWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountProgressMetricsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ProgressMetricWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountAiLogsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AILogWhereInput
 }
 
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   email?: boolean
-  name?: boolean
-  role?: boolean
+  passwordHash?: boolean
+  career?: boolean
+  incomeGoal?: boolean
+  cityGoal?: boolean
+  fitnessGoal?: boolean
+  communicationGoal?: boolean
   createdAt?: boolean
-  updatedAt?: boolean
-  posts?: boolean | Prisma.User$postsArgs<ExtArgs>
+  goals?: boolean | Prisma.User$goalsArgs<ExtArgs>
+  careerPaths?: boolean | Prisma.User$careerPathsArgs<ExtArgs>
+  roadmaps?: boolean | Prisma.User$roadmapsArgs<ExtArgs>
+  dailyTasks?: boolean | Prisma.User$dailyTasksArgs<ExtArgs>
+  jobApplications?: boolean | Prisma.User$jobApplicationsArgs<ExtArgs>
+  progressMetrics?: boolean | Prisma.User$progressMetricsArgs<ExtArgs>
+  aiLogs?: boolean | Prisma.User$aiLogsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   email?: boolean
-  name?: boolean
-  role?: boolean
+  passwordHash?: boolean
+  career?: boolean
+  incomeGoal?: boolean
+  cityGoal?: boolean
+  fitnessGoal?: boolean
+  communicationGoal?: boolean
   createdAt?: boolean
-  updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   email?: boolean
-  name?: boolean
-  role?: boolean
+  passwordHash?: boolean
+  career?: boolean
+  incomeGoal?: boolean
+  cityGoal?: boolean
+  fitnessGoal?: boolean
+  communicationGoal?: boolean
   createdAt?: boolean
-  updatedAt?: boolean
 }, ExtArgs["result"]["user"]>
 
 export type UserSelectScalar = {
   id?: boolean
   email?: boolean
-  name?: boolean
-  role?: boolean
+  passwordHash?: boolean
+  career?: boolean
+  incomeGoal?: boolean
+  cityGoal?: boolean
+  fitnessGoal?: boolean
+  communicationGoal?: boolean
   createdAt?: boolean
-  updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "name" | "role" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "passwordHash" | "career" | "incomeGoal" | "cityGoal" | "fitnessGoal" | "communicationGoal" | "createdAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
-  posts?: boolean | Prisma.User$postsArgs<ExtArgs>
+  goals?: boolean | Prisma.User$goalsArgs<ExtArgs>
+  careerPaths?: boolean | Prisma.User$careerPathsArgs<ExtArgs>
+  roadmaps?: boolean | Prisma.User$roadmapsArgs<ExtArgs>
+  dailyTasks?: boolean | Prisma.User$dailyTasksArgs<ExtArgs>
+  jobApplications?: boolean | Prisma.User$jobApplicationsArgs<ExtArgs>
+  progressMetrics?: boolean | Prisma.User$progressMetricsArgs<ExtArgs>
+  aiLogs?: boolean | Prisma.User$aiLogsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -501,15 +1380,24 @@ export type UserIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensi
 export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "User"
   objects: {
-    posts: Prisma.$PostPayload<ExtArgs>[]
+    goals: Prisma.$GoalPayload<ExtArgs>[]
+    careerPaths: Prisma.$CareerPathPayload<ExtArgs>[]
+    roadmaps: Prisma.$RoadmapPayload<ExtArgs>[]
+    dailyTasks: Prisma.$DailyTaskPayload<ExtArgs>[]
+    jobApplications: Prisma.$JobApplicationPayload<ExtArgs>[]
+    progressMetrics: Prisma.$ProgressMetricPayload<ExtArgs>[]
+    aiLogs: Prisma.$AILogPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
-    id: string
+    id: number
     email: string
-    name: string | null
-    role: $Enums.Role
+    passwordHash: string
+    career: string | null
+    incomeGoal: runtime.Decimal | null
+    cityGoal: string | null
+    fitnessGoal: string | null
+    communicationGoal: string | null
     createdAt: Date
-    updatedAt: Date
   }, ExtArgs["result"]["user"]>
   composites: {}
 }
@@ -904,7 +1792,13 @@ readonly fields: UserFieldRefs;
  */
 export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
-  posts<T extends Prisma.User$postsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$postsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$PostPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  goals<T extends Prisma.User$goalsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$goalsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GoalPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  careerPaths<T extends Prisma.User$careerPathsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$careerPathsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CareerPathPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  roadmaps<T extends Prisma.User$roadmapsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$roadmapsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RoadmapPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  dailyTasks<T extends Prisma.User$dailyTasksArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$dailyTasksArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DailyTaskPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  jobApplications<T extends Prisma.User$jobApplicationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$jobApplicationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$JobApplicationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  progressMetrics<T extends Prisma.User$progressMetricsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$progressMetricsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProgressMetricPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  aiLogs<T extends Prisma.User$aiLogsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$aiLogsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AILogPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -934,12 +1828,15 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
  * Fields of the User model
  */
 export interface UserFieldRefs {
-  readonly id: Prisma.FieldRef<"User", 'String'>
+  readonly id: Prisma.FieldRef<"User", 'Int'>
   readonly email: Prisma.FieldRef<"User", 'String'>
-  readonly name: Prisma.FieldRef<"User", 'String'>
-  readonly role: Prisma.FieldRef<"User", 'Role'>
+  readonly passwordHash: Prisma.FieldRef<"User", 'String'>
+  readonly career: Prisma.FieldRef<"User", 'String'>
+  readonly incomeGoal: Prisma.FieldRef<"User", 'Decimal'>
+  readonly cityGoal: Prisma.FieldRef<"User", 'String'>
+  readonly fitnessGoal: Prisma.FieldRef<"User", 'String'>
+  readonly communicationGoal: Prisma.FieldRef<"User", 'String'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
-  readonly updatedAt: Prisma.FieldRef<"User", 'DateTime'>
 }
     
 
@@ -1333,27 +2230,171 @@ export type UserDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Internal
 }
 
 /**
- * User.posts
+ * User.goals
  */
-export type User$postsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+export type User$goalsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   /**
-   * Select specific fields to fetch from the Post
+   * Select specific fields to fetch from the Goal
    */
-  select?: Prisma.PostSelect<ExtArgs> | null
+  select?: Prisma.GoalSelect<ExtArgs> | null
   /**
-   * Omit specific fields from the Post
+   * Omit specific fields from the Goal
    */
-  omit?: Prisma.PostOmit<ExtArgs> | null
+  omit?: Prisma.GoalOmit<ExtArgs> | null
   /**
    * Choose, which related nodes to fetch as well
    */
-  include?: Prisma.PostInclude<ExtArgs> | null
-  where?: Prisma.PostWhereInput
-  orderBy?: Prisma.PostOrderByWithRelationInput | Prisma.PostOrderByWithRelationInput[]
-  cursor?: Prisma.PostWhereUniqueInput
+  include?: Prisma.GoalInclude<ExtArgs> | null
+  where?: Prisma.GoalWhereInput
+  orderBy?: Prisma.GoalOrderByWithRelationInput | Prisma.GoalOrderByWithRelationInput[]
+  cursor?: Prisma.GoalWhereUniqueInput
   take?: number
   skip?: number
-  distinct?: Prisma.PostScalarFieldEnum | Prisma.PostScalarFieldEnum[]
+  distinct?: Prisma.GoalScalarFieldEnum | Prisma.GoalScalarFieldEnum[]
+}
+
+/**
+ * User.careerPaths
+ */
+export type User$careerPathsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CareerPath
+   */
+  select?: Prisma.CareerPathSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CareerPath
+   */
+  omit?: Prisma.CareerPathOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CareerPathInclude<ExtArgs> | null
+  where?: Prisma.CareerPathWhereInput
+  orderBy?: Prisma.CareerPathOrderByWithRelationInput | Prisma.CareerPathOrderByWithRelationInput[]
+  cursor?: Prisma.CareerPathWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CareerPathScalarFieldEnum | Prisma.CareerPathScalarFieldEnum[]
+}
+
+/**
+ * User.roadmaps
+ */
+export type User$roadmapsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Roadmap
+   */
+  select?: Prisma.RoadmapSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Roadmap
+   */
+  omit?: Prisma.RoadmapOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.RoadmapInclude<ExtArgs> | null
+  where?: Prisma.RoadmapWhereInput
+  orderBy?: Prisma.RoadmapOrderByWithRelationInput | Prisma.RoadmapOrderByWithRelationInput[]
+  cursor?: Prisma.RoadmapWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.RoadmapScalarFieldEnum | Prisma.RoadmapScalarFieldEnum[]
+}
+
+/**
+ * User.dailyTasks
+ */
+export type User$dailyTasksArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the DailyTask
+   */
+  select?: Prisma.DailyTaskSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the DailyTask
+   */
+  omit?: Prisma.DailyTaskOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.DailyTaskInclude<ExtArgs> | null
+  where?: Prisma.DailyTaskWhereInput
+  orderBy?: Prisma.DailyTaskOrderByWithRelationInput | Prisma.DailyTaskOrderByWithRelationInput[]
+  cursor?: Prisma.DailyTaskWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.DailyTaskScalarFieldEnum | Prisma.DailyTaskScalarFieldEnum[]
+}
+
+/**
+ * User.jobApplications
+ */
+export type User$jobApplicationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the JobApplication
+   */
+  select?: Prisma.JobApplicationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the JobApplication
+   */
+  omit?: Prisma.JobApplicationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.JobApplicationInclude<ExtArgs> | null
+  where?: Prisma.JobApplicationWhereInput
+  orderBy?: Prisma.JobApplicationOrderByWithRelationInput | Prisma.JobApplicationOrderByWithRelationInput[]
+  cursor?: Prisma.JobApplicationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.JobApplicationScalarFieldEnum | Prisma.JobApplicationScalarFieldEnum[]
+}
+
+/**
+ * User.progressMetrics
+ */
+export type User$progressMetricsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ProgressMetric
+   */
+  select?: Prisma.ProgressMetricSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ProgressMetric
+   */
+  omit?: Prisma.ProgressMetricOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ProgressMetricInclude<ExtArgs> | null
+  where?: Prisma.ProgressMetricWhereInput
+  orderBy?: Prisma.ProgressMetricOrderByWithRelationInput | Prisma.ProgressMetricOrderByWithRelationInput[]
+  cursor?: Prisma.ProgressMetricWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ProgressMetricScalarFieldEnum | Prisma.ProgressMetricScalarFieldEnum[]
+}
+
+/**
+ * User.aiLogs
+ */
+export type User$aiLogsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AILog
+   */
+  select?: Prisma.AILogSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AILog
+   */
+  omit?: Prisma.AILogOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AILogInclude<ExtArgs> | null
+  where?: Prisma.AILogWhereInput
+  orderBy?: Prisma.AILogOrderByWithRelationInput | Prisma.AILogOrderByWithRelationInput[]
+  cursor?: Prisma.AILogWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AILogScalarFieldEnum | Prisma.AILogScalarFieldEnum[]
 }
 
 /**

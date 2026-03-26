@@ -8,6 +8,13 @@
  *
  * 🟢 You can import this file directly.
  */
-export type * from './models/User.ts'
-export type * from './models/Post.ts'
-export type * from './commonInputTypes.ts'
+export type * from './models/User.js'
+export type * from './models/Goal.js'
+export type * from './models/CareerPath.js'
+export type * from './models/Roadmap.js'
+export type * from './models/RoadmapStep.js'
+export type * from './models/DailyTask.js'
+export type * from './models/JobApplication.js'
+export type * from './models/ProgressMetric.js'
+export type * from './models/AILog.js'
+export type * from './commonInputTypes.js'

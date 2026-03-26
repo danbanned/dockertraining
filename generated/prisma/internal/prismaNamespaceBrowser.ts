@@ -17,8 +17,8 @@
 
 import * as runtime from "@prisma/client/runtime/index-browser"
 
-export type * from '../models.ts'
-export type * from './prismaNamespace.ts'
+export type * from '../models.js'
+export type * from './prismaNamespace.js'
 
 export const Decimal = runtime.Decimal
 
@@ -52,7 +52,14 @@ export const AnyNull = runtime.AnyNull
 
 export const ModelName = {
   User: 'User',
-  Post: 'Post'
+  Goal: 'Goal',
+  CareerPath: 'CareerPath',
+  Roadmap: 'Roadmap',
+  RoadmapStep: 'RoadmapStep',
+  DailyTask: 'DailyTask',
+  JobApplication: 'JobApplication',
+  ProgressMetric: 'ProgressMetric',
+  AILog: 'AILog'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -74,26 +81,122 @@ export type TransactionIsolationLevel = (typeof TransactionIsolationLevel)[keyof
 export const UserScalarFieldEnum = {
   id: 'id',
   email: 'email',
-  name: 'name',
-  role: 'role',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  passwordHash: 'passwordHash',
+  career: 'career',
+  incomeGoal: 'incomeGoal',
+  cityGoal: 'cityGoal',
+  fitnessGoal: 'fitnessGoal',
+  communicationGoal: 'communicationGoal',
+  createdAt: 'createdAt'
 } as const
 
 export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
 
 
-export const PostScalarFieldEnum = {
+export const GoalScalarFieldEnum = {
   id: 'id',
-  title: 'title',
-  content: 'content',
-  published: 'published',
-  authorId: 'authorId',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  userId: 'userId',
+  type: 'type',
+  target: 'target',
+  deadline: 'deadline',
+  createdAt: 'createdAt'
 } as const
 
-export type PostScalarFieldEnum = (typeof PostScalarFieldEnum)[keyof typeof PostScalarFieldEnum]
+export type GoalScalarFieldEnum = (typeof GoalScalarFieldEnum)[keyof typeof GoalScalarFieldEnum]
+
+
+export const CareerPathScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  title: 'title',
+  description: 'description',
+  createdAt: 'createdAt'
+} as const
+
+export type CareerPathScalarFieldEnum = (typeof CareerPathScalarFieldEnum)[keyof typeof CareerPathScalarFieldEnum]
+
+
+export const RoadmapScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  title: 'title',
+  startDate: 'startDate',
+  endDate: 'endDate',
+  description: 'description',
+  createdAt: 'createdAt'
+} as const
+
+export type RoadmapScalarFieldEnum = (typeof RoadmapScalarFieldEnum)[keyof typeof RoadmapScalarFieldEnum]
+
+
+export const RoadmapStepScalarFieldEnum = {
+  id: 'id',
+  roadmapId: 'roadmapId',
+  month: 'month',
+  title: 'title',
+  description: 'description',
+  createdAt: 'createdAt'
+} as const
+
+export type RoadmapStepScalarFieldEnum = (typeof RoadmapStepScalarFieldEnum)[keyof typeof RoadmapStepScalarFieldEnum]
+
+
+export const DailyTaskScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  date: 'date',
+  task: 'task',
+  category: 'category',
+  reason: 'reason',
+  completed: 'completed',
+  createdAt: 'createdAt'
+} as const
+
+export type DailyTaskScalarFieldEnum = (typeof DailyTaskScalarFieldEnum)[keyof typeof DailyTaskScalarFieldEnum]
+
+
+export const JobApplicationScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  company: 'company',
+  position: 'position',
+  dateApplied: 'dateApplied',
+  status: 'status',
+  notes: 'notes',
+  createdAt: 'createdAt'
+} as const
+
+export type JobApplicationScalarFieldEnum = (typeof JobApplicationScalarFieldEnum)[keyof typeof JobApplicationScalarFieldEnum]
+
+
+export const ProgressMetricScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  skillsScore: 'skillsScore',
+  applicationsScore: 'applicationsScore',
+  communicationScore: 'communicationScore',
+  healthScore: 'healthScore',
+  environmentScore: 'environmentScore',
+  consistencyScore: 'consistencyScore',
+  totalScore: 'totalScore',
+  date: 'date',
+  createdAt: 'createdAt'
+} as const
+
+export type ProgressMetricScalarFieldEnum = (typeof ProgressMetricScalarFieldEnum)[keyof typeof ProgressMetricScalarFieldEnum]
+
+
+export const AILogScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  modelUsed: 'modelUsed',
+  prompt: 'prompt',
+  response: 'response',
+  durationMs: 'durationMs',
+  createdAt: 'createdAt'
+} as const
+
+export type AILogScalarFieldEnum = (typeof AILogScalarFieldEnum)[keyof typeof AILogScalarFieldEnum]
 
 
 export const SortOrder = {

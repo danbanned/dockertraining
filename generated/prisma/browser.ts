@@ -13,17 +13,52 @@
  * 🟢 You can import this file directly.
  */
 
-import * as Prisma from './internal/prismaNamespaceBrowser.ts'
+import * as Prisma from './internal/prismaNamespaceBrowser.js'
 export { Prisma }
-export * as $Enums from './enums.ts'
-export * from './enums.ts';
+export * as $Enums from './enums.js'
+export * from './enums.js';
 /**
  * Model User
  * 
  */
 export type User = Prisma.UserModel
 /**
- * Model Post
+ * Model Goal
  * 
  */
-export type Post = Prisma.PostModel
+export type Goal = Prisma.GoalModel
+/**
+ * Model CareerPath
+ * 
+ */
+export type CareerPath = Prisma.CareerPathModel
+/**
+ * Model Roadmap
+ * 
+ */
+export type Roadmap = Prisma.RoadmapModel
+/**
+ * Model RoadmapStep
+ * 
+ */
+export type RoadmapStep = Prisma.RoadmapStepModel
+/**
+ * Model DailyTask
+ * 
+ */
+export type DailyTask = Prisma.DailyTaskModel
+/**
+ * Model JobApplication
+ * 
+ */
+export type JobApplication = Prisma.JobApplicationModel
+/**
+ * Model ProgressMetric
+ * 
+ */
+export type ProgressMetric = Prisma.ProgressMetricModel
+/**
+ * Model AILog
+ * 
+ */
+export type AILog = Prisma.AILogModel

@@ -1,11 +1,10 @@
 # -----------------------------------------------------------
 # Workflow Name - Multi-Registry Docker Deployment
 # The CI/CD pipeline builds a Docker image once and publishes it to both
-# Amazon ECR and GitHub Container Registry (GHCR). This allows different
+# Amazon ECR and GitHub Container Registry (GHCR). also future implamentation of ECS This allows different
 # deployment environments to pull the image from their preferred registry.
 # -----------------------------------------------------------
-name: CI
-
+name: CI/CD Pipeline - Multi-Registry Docker Deployment
 
 # -----------------------------------------------------------
 # Permissions - Added security-events for CodeQL
